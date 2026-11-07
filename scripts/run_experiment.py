@@ -236,7 +236,8 @@ def main() -> int:
         # honest comparison for that run.
         baseline = (
             PRE_FIX_ESTIMATOR_AUC
-            if args.dataset == "locomo" and seed == 0
+            if (args.dataset == "locomo" and seed == 0 and not args.fast
+                and args.reader == "hf" and args.embedder == "sentence-transformers")
             else None
         )
         results = run_all_conditions(data, cfg, conditions=conditions,

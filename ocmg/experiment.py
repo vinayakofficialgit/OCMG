@@ -45,6 +45,7 @@ LABELS = {
 # item 7), on LoCoMo at seed 0 under this same configuration. Named here so a
 # run can show what the fix changed without the figure being a number typed
 # into a slide.
+# LoCoMo, seed 0, full run, reader hf (<model>), embedder sentence-transformers, measured before the credit-label fix. Source: <results file>.
 PRE_FIX_ESTIMATOR_AUC = 0.507
 
 
@@ -190,10 +191,10 @@ def run_all_conditions(
                    hint="one held-out conversation each"))
         print(C.kv("calibration",
                    f"Brier {report.brier:.4f}   avg precision {report.ap_mean:.3f}"))
-        if baseline_auc is not None:
+        if baseline_auc is not None and report.auc_folds:
             print("")
             print(C.note("effect of the credit-label fix", "muted"))
-            print(C.before_after("before the fix", baseline_auc,
+            print(C.before_after("before the fix (recorded, earlier run)", baseline_auc,
                                  "after the fix", report.auc_mean,
                                  reference=("target", 0.70)))
         if report.auc_single_feature:
