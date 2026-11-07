@@ -1,0 +1,959 @@
+{
+  "meta": {
+    "created": "2026-10-24T16:13:59",
+    "dataset": "locomo",
+    "path": ".\\data\\locomo10.json",
+    "embedder": "hashing",
+    "reader": "simulated",
+    "estimator": "gbdt",
+    "credit": "rank_weighted",
+    "k": 10,
+    "write_quantile": 0.35,
+    "forget_quantile": 0.25,
+    "mass_target": 0.8,
+    "runs": 3,
+    "seed": 0,
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "reportable": false
+  },
+  "runs": [
+    {
+      "seed": 0,
+      "conditions": {
+        "full_context": {
+          "accuracy": 0.580046403712297,
+          "token_f1": 0.5834210140727603,
+          "tokens_per_query": 14089.344547563805,
+          "accuracy_per_1k_tokens": 0.04116915458729364,
+          "retrieval_latency_ms": 0.0,
+          "records_retained": 1616,
+          "generative_calls": 0,
+          "n_questions": 862,
+          "per_category": {
+            "temporal": 0.5986842105263158,
+            "multi_hop": 0.5985915492957746,
+            "open_domain": 0.625,
+            "single_hop": 0.5833333333333334,
+            "adversarial": 0.5364583333333334
+          },
+          "extra": {}
+        },
+        "naive_rag": {
+          "accuracy": 0.5197215777262181,
+          "token_f1": 0.5250729835842906,
+          "tokens_per_query": 624.7714617169373,
+          "accuracy_per_1k_tokens": 0.8318587028574718,
+          "retrieval_latency_ms": 2.1504769252997815,
+          "records_retained": 1616,
+          "generative_calls": 0,
+          "n_questions": 862,
+          "per_category": {
+            "temporal": 0.506578947368421,
+            "multi_hop": 0.14788732394366197,
+            "open_domain": 0.225,
+            "single_hop": 0.5595238095238095,
+            "adversarial": 0.796875
+          },
+          "extra": {}
+        },
+        "append_all": {
+          "accuracy": 0.5197215777262181,
+          "token_f1": 0.5250729835842906,
+          "tokens_per_query": 624.7714617169373,
+          "accuracy_per_1k_tokens": 0.8318587028574718,
+          "retrieval_latency_ms": 2.184561275490268,
+          "records_retained": 1616,
+          "generative_calls": 0,
+          "n_questions": 862,
+          "per_category": {
+            "temporal": 0.506578947368421,
+            "multi_hop": 0.14788732394366197,
+            "open_domain": 0.225,
+            "single_hop": 0.5595238095238095,
+            "adversarial": 0.796875
+          },
+          "extra": {
+            "candidates": 1616,
+            "admitted": 1616,
+            "merged": 0,
+            "discarded": 0
+          }
+        },
+        "decay": {
+          "accuracy": 0.4408352668213457,
+          "token_f1": 0.44759060006742424,
+          "tokens_per_query": 679.9953596287703,
+          "accuracy_per_1k_tokens": 0.6482915810808044,
+          "retrieval_latency_ms": 1.640588635029898,
+          "records_retained": 339,
+          "generative_calls": 0,
+          "n_questions": 862,
+          "per_category": {
+            "temporal": 0.48026315789473684,
+            "multi_hop": 0.13380281690140844,
+            "open_domain": 0.225,
+            "single_hop": 0.375,
+            "adversarial": 0.796875
+          },
+          "extra": {
+            "candidates": 1616,
+            "admitted": 1616,
+            "merged": 0,
+            "discarded": 0,
+            "evicted": 1277
+          }
+        },
+        "generative_judge": {
+          "accuracy": 0.5197215777262181,
+          "token_f1": 0.5250729835842906,
+          "tokens_per_query": 624.7714617169373,
+          "accuracy_per_1k_tokens": 0.8318587028574718,
+          "retrieval_latency_ms": 2.3720586875544347,
+          "records_retained": 1616,
+          "generative_calls": 1616,
+          "n_questions": 862,
+          "per_category": {
+            "temporal": 0.506578947368421,
+            "multi_hop": 0.14788732394366197,
+            "open_domain": 0.225,
+            "single_hop": 0.5595238095238095,
+            "adversarial": 0.796875
+          },
+          "extra": {
+            "candidates": 1616,
+            "admitted": 1616,
+            "merged": 0,
+            "discarded": 0
+          }
+        },
+        "ocmg": {
+          "accuracy": 0.4605568445475638,
+          "token_f1": 0.46786384672868403,
+          "tokens_per_query": 423.745939675174,
+          "accuracy_per_1k_tokens": 1.0868702244099555,
+          "retrieval_latency_ms": 20.905200575679334,
+          "records_retained": 754,
+          "generative_calls": 0,
+          "n_questions": 862,
+          "per_category": {
+            "temporal": 0.5328947368421053,
+            "multi_hop": 0.13380281690140844,
+            "open_domain": 0.15,
+            "single_hop": 0.3869047619047619,
+            "adversarial": 0.8385416666666666
+          },
+          "extra": {
+            "candidates": 1616,
+            "admitted": 974,
+            "merged": 0,
+            "discarded": 642,
+            "evicted": 220,
+            "write_threshold": 0.139807887655412,
+            "retention_precision": {
+              "gap": 0.34136870649754136,
+              "ci_low": 0.30459412849605705,
+              "ci_high": 0.3789403496565102,
+              "auc": 0.7850090307043949
+            }
+          }
+        }
+      },
+      "estimator": {
+        "auc_mean": 0.7268958293233101,
+        "auc_std": 0.043722278677560206,
+        "auc_folds": [
+          0.6955799064269884,
+          0.7787779596290234,
+          0.7318915801614763,
+          0.6615121819652972,
+          0.7667175184337656
+        ],
+        "average_precision": 0.32155857469568877,
+        "brier": 0.14689523868759038,
+        "n_samples": 1501,
+        "positive_rate": 0.1965356429047302,
+        "feature_importance": {
+          "type_profile": 0.0011586137111054384,
+          "type_episodic": 0.0011310678247181461,
+          "type_factual": 0.010258312954998993,
+          "token_length": 0.021114202996317742,
+          "n_entities": 0.015118756499985907,
+          "has_temporal_anchor": 0.0,
+          "n_sentences": 0.014253028642100162,
+          "digit_ratio": 0.01139837535486401,
+          "max_similarity": 0.03791888017539411,
+          "mean_top5_similarity": 0.028972650869944005,
+          "novelty": 0.00598251679455819,
+          "mean_idf": 0.05291283694521738,
+          "max_idf": 0.03963122241897845,
+          "unique_token_ratio": 0.024895859684627618,
+          "rare_term_count": 0.09683896899682369,
+          "near_duplicate": 0.0,
+          "session_index_norm": 0.019815611209489204,
+          "position_in_session": 0.026091576018213946,
+          "is_user": 0.0,
+          "is_assistant": 0.0,
+          "turn_span": 0.0036236894622929893,
+          "modifies_existing": 0.00044354498692968927,
+          "contradicts_existing": 0.0,
+          "retrieval_count": 0.0,
+          "log_retrieval_count": 0.0,
+          "recency_gap": 0.0,
+          "running_utility": 0.0,
+          "credit_total": 0.0,
+          "weight_total": 0.0,
+          "ever_retrieved": 0.0
+        }
+      },
+      "label_validation": {
+        "n": 1501,
+        "outcome_positive_rate": 0.1965356429047302,
+        "evidence_positive_rate": 0.41372418387741505,
+        "precision": 1.0,
+        "recall": 0.4750402576489533,
+        "f1": 0.6441048034934498,
+        "kappa": 0.5148107237691443,
+        "true_positives": 295,
+        "false_positives": 0,
+        "false_negatives": 326,
+        "estimator_auc_vs_evidence": 0.7085163226467575
+      },
+      "targets": {
+        "accuracy_retention": {
+          "value": 0.7939999999999999,
+          "target": 0.95,
+          "met": false
+        },
+        "token_reduction": {
+          "value": 0.32175848987936195,
+          "target": 0.4,
+          "met": false
+        },
+        "estimator_auc": {
+          "value": 0.7268958293233101,
+          "target": 0.7,
+          "met": true
+        }
+      },
+      "significance": {
+        "ocmg_vs_full_context": {
+          "delta": -0.1194895591647332,
+          "ci_low": -0.16125290023201855,
+          "ci_high": -0.07772621809744779,
+          "p_value": 0.0
+        },
+        "ocmg_vs_naive_rag": {
+          "delta": -0.05916473317865428,
+          "ci_low": -0.08352668213457076,
+          "ci_high": -0.03480278422273786,
+          "p_value": 0.0
+        },
+        "ocmg_vs_append_all": {
+          "delta": -0.05916473317865428,
+          "ci_low": -0.08352668213457076,
+          "ci_high": -0.03480278422273786,
+          "p_value": 0.0
+        },
+        "ocmg_vs_decay": {
+          "delta": 0.019721577726218076,
+          "ci_low": -0.009280742459396751,
+          "ci_high": 0.04872389791183296,
+          "p_value": 0.1912
+        },
+        "ocmg_vs_generative_judge": {
+          "delta": -0.05916473317865428,
+          "ci_low": -0.08352668213457076,
+          "ci_high": -0.03480278422273786,
+          "p_value": 0.0
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "conditions": {
+        "full_context": {
+          "accuracy": 0.5761194029850746,
+          "token_f1": 0.5809198667288037,
+          "tokens_per_query": 16749.053731343283,
+          "accuracy_per_1k_tokens": 0.03439713145745992,
+          "retrieval_latency_ms": 0.0,
+          "records_retained": 2044,
+          "generative_calls": 0,
+          "n_questions": 1005,
+          "per_category": {
+            "temporal": 0.6305732484076433,
+            "multi_hop": 0.54,
+            "open_domain": 0.5652173913043478,
+            "single_hop": 0.5501165501165501,
+            "adversarial": 0.6143497757847534
+          },
+          "extra": {}
+        },
+        "naive_rag": {
+          "accuracy": 0.5243781094527363,
+          "token_f1": 0.5294272517714133,
+          "tokens_per_query": 572.3223880597014,
+          "accuracy_per_1k_tokens": 0.9162285459957162,
+          "retrieval_latency_ms": 2.914119613778532,
+          "records_retained": 2044,
+          "generative_calls": 0,
+          "n_questions": 1005,
+          "per_category": {
+            "temporal": 0.5031847133757962,
+            "multi_hop": 0.22,
+            "open_domain": 0.2391304347826087,
+            "single_hop": 0.5268065268065268,
+            "adversarial": 0.7982062780269058
+          },
+          "extra": {}
+        },
+        "append_all": {
+          "accuracy": 0.5243781094527363,
+          "token_f1": 0.5294272517714133,
+          "tokens_per_query": 572.3223880597014,
+          "accuracy_per_1k_tokens": 0.9162285459957162,
+          "retrieval_latency_ms": 2.775414928386164,
+          "records_retained": 2044,
+          "generative_calls": 0,
+          "n_questions": 1005,
+          "per_category": {
+            "temporal": 0.5031847133757962,
+            "multi_hop": 0.22,
+            "open_domain": 0.2391304347826087,
+            "single_hop": 0.5268065268065268,
+            "adversarial": 0.7982062780269058
+          },
+          "extra": {
+            "candidates": 2044,
+            "admitted": 2044,
+            "merged": 0,
+            "discarded": 0
+          }
+        },
+        "decay": {
+          "accuracy": 0.36517412935323385,
+          "token_f1": 0.37233722749323717,
+          "tokens_per_query": 694.8696517412935,
+          "accuracy_per_1k_tokens": 0.5255289656673502,
+          "retrieval_latency_ms": 1.4241732434550327,
+          "records_retained": 272,
+          "generative_calls": 0,
+          "n_questions": 1005,
+          "per_category": {
+            "temporal": 0.35668789808917195,
+            "multi_hop": 0.14,
+            "open_domain": 0.1956521739130435,
+            "single_hop": 0.2400932400932401,
+            "adversarial": 0.7982062780269058
+          },
+          "extra": {
+            "candidates": 2044,
+            "admitted": 2044,
+            "merged": 0,
+            "discarded": 0,
+            "evicted": 1772
+          }
+        },
+        "generative_judge": {
+          "accuracy": 0.5243781094527363,
+          "token_f1": 0.5294272517714133,
+          "tokens_per_query": 572.3223880597014,
+          "accuracy_per_1k_tokens": 0.9162285459957162,
+          "retrieval_latency_ms": 2.902697314929903,
+          "records_retained": 2044,
+          "generative_calls": 2044,
+          "n_questions": 1005,
+          "per_category": {
+            "temporal": 0.5031847133757962,
+            "multi_hop": 0.22,
+            "open_domain": 0.2391304347826087,
+            "single_hop": 0.5268065268065268,
+            "adversarial": 0.7982062780269058
+          },
+          "extra": {
+            "candidates": 2044,
+            "admitted": 2044,
+            "merged": 0,
+            "discarded": 0
+          }
+        },
+        "ocmg": {
+          "accuracy": 0.46865671641791046,
+          "token_f1": 0.47466229661368514,
+          "tokens_per_query": 411.5820895522388,
+          "accuracy_per_1k_tokens": 1.1386713083841022,
+          "retrieval_latency_ms": 19.715511859093436,
+          "records_retained": 878,
+          "generative_calls": 0,
+          "n_questions": 1005,
+          "per_category": {
+            "temporal": 0.4585987261146497,
+            "multi_hop": 0.18,
+            "open_domain": 0.15217391304347827,
+            "single_hop": 0.3962703962703963,
+            "adversarial": 0.874439461883408
+          },
+          "extra": {
+            "candidates": 2044,
+            "admitted": 1169,
+            "merged": 0,
+            "discarded": 875,
+            "evicted": 291,
+            "write_threshold": 0.11764510375827379,
+            "retention_precision": {
+              "gap": 0.40943397918734004,
+              "ci_low": 0.37574670494888623,
+              "ci_high": 0.4408625327529727,
+              "auc": 0.8246631398082835
+            }
+          }
+        }
+      },
+      "estimator": {
+        "auc_mean": 0.6887491295453149,
+        "auc_std": 0.0295103197081891,
+        "auc_folds": [
+          0.690537084398977,
+          0.6746494066882416,
+          0.7290982966088451,
+          0.7073739035087719,
+          0.6420869565217391
+        ],
+        "average_precision": 0.2608720633257298,
+        "brier": 0.13362799054584584,
+        "n_samples": 1247,
+        "positive_rate": 0.16920609462710506,
+        "feature_importance": {
+          "type_profile": 0.0012461344214898418,
+          "type_episodic": 0.0027795568079928,
+          "type_factual": 0.0008856520704861648,
+          "token_length": 0.04538966861241742,
+          "n_entities": 0.017874069058903142,
+          "has_temporal_anchor": 0.0,
+          "n_sentences": 0.026607074237405916,
+          "digit_ratio": 0.006199564493403309,
+          "max_similarity": 0.02770681988691459,
+          "mean_top5_similarity": 0.02340573478014236,
+          "novelty": 0.01882559607678087,
+          "mean_idf": 0.062277443320097325,
+          "max_idf": 0.037494739153506915,
+          "unique_token_ratio": 0.03750846310088014,
+          "rare_term_count": 0.06395176489963221,
+          "near_duplicate": 0.0,
+          "session_index_norm": 0.007849182967666323,
+          "position_in_session": 0.03209848304635028,
+          "is_user": 0.0,
+          "is_assistant": 0.0,
+          "turn_span": 0.0003211403685337233,
+          "modifies_existing": 0.005162949001811556,
+          "contradicts_existing": 0.0,
+          "retrieval_count": 0.0,
+          "log_retrieval_count": 0.0,
+          "recency_gap": 0.0,
+          "running_utility": 0.0,
+          "credit_total": 0.0,
+          "weight_total": 0.0,
+          "ever_retrieved": 0.0
+        }
+      },
+      "label_validation": {
+        "n": 1247,
+        "outcome_positive_rate": 0.16920609462710506,
+        "evidence_positive_rate": 0.45549318364073776,
+        "precision": 1.0,
+        "recall": 0.3714788732394366,
+        "f1": 0.5417201540436457,
+        "kappa": 0.3915967512029924,
+        "true_positives": 211,
+        "false_positives": 0,
+        "false_negatives": 357,
+        "estimator_auc_vs_evidence": 0.6938616233483375
+      },
+      "targets": {
+        "accuracy_retention": {
+          "value": 0.8134715025906737,
+          "target": 0.95,
+          "met": false
+        },
+        "token_reduction": {
+          "value": 0.2808562129683718,
+          "target": 0.4,
+          "met": false
+        },
+        "estimator_auc": {
+          "value": 0.6887491295453149,
+          "target": 0.7,
+          "met": false
+        }
+      },
+      "significance": {
+        "ocmg_vs_full_context": {
+          "delta": -0.10746268656716412,
+          "ci_low": -0.14427860696517414,
+          "ci_high": -0.06965174129353241,
+          "p_value": 0.0
+        },
+        "ocmg_vs_naive_rag": {
+          "delta": -0.05572139303482587,
+          "ci_low": -0.07960199004975127,
+          "ci_high": -0.03184079601990053,
+          "p_value": 0.0
+        },
+        "ocmg_vs_append_all": {
+          "delta": -0.05572139303482587,
+          "ci_low": -0.07960199004975127,
+          "ci_high": -0.03184079601990053,
+          "p_value": 0.0
+        },
+        "ocmg_vs_decay": {
+          "delta": 0.10348258706467661,
+          "ci_low": 0.07661691542288557,
+          "ci_high": 0.13034825870646766,
+          "p_value": 0.0
+        },
+        "ocmg_vs_generative_judge": {
+          "delta": -0.05572139303482587,
+          "ci_low": -0.07960199004975127,
+          "ci_high": -0.03184079601990053,
+          "p_value": 0.0
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "conditions": {
+        "full_context": {
+          "accuracy": 0.562955254942768,
+          "token_f1": 0.5663130502458488,
+          "tokens_per_query": 15258.216441207076,
+          "accuracy_per_1k_tokens": 0.036895220166259006,
+          "retrieval_latency_ms": 0.0,
+          "records_retained": 1801,
+          "generative_calls": 0,
+          "n_questions": 961,
+          "per_category": {
+            "temporal": 0.5234899328859061,
+            "multi_hop": 0.5821917808219178,
+            "open_domain": 0.6666666666666666,
+            "single_hop": 0.5617128463476071,
+            "adversarial": 0.5580357142857143
+          },
+          "extra": {}
+        },
+        "naive_rag": {
+          "accuracy": 0.5161290322580645,
+          "token_f1": 0.5206244514951877,
+          "tokens_per_query": 602.5608740894901,
+          "accuracy_per_1k_tokens": 0.8565591535261398,
+          "retrieval_latency_ms": 2.899447036374062,
+          "records_retained": 1801,
+          "generative_calls": 0,
+          "n_questions": 961,
+          "per_category": {
+            "temporal": 0.4966442953020134,
+            "multi_hop": 0.14383561643835616,
+            "open_domain": 0.13333333333333333,
+            "single_hop": 0.5566750629722922,
+            "adversarial": 0.7767857142857143
+          },
+          "extra": {}
+        },
+        "append_all": {
+          "accuracy": 0.5161290322580645,
+          "token_f1": 0.5206244514951877,
+          "tokens_per_query": 602.5608740894901,
+          "accuracy_per_1k_tokens": 0.8565591535261398,
+          "retrieval_latency_ms": 4.4621468301664775,
+          "records_retained": 1801,
+          "generative_calls": 0,
+          "n_questions": 961,
+          "per_category": {
+            "temporal": 0.4966442953020134,
+            "multi_hop": 0.14383561643835616,
+            "open_domain": 0.13333333333333333,
+            "single_hop": 0.5566750629722922,
+            "adversarial": 0.7767857142857143
+          },
+          "extra": {
+            "candidates": 1801,
+            "admitted": 1801,
+            "merged": 0,
+            "discarded": 0
+          }
+        },
+        "decay": {
+          "accuracy": 0.39125910509885536,
+          "token_f1": 0.3975850986885827,
+          "tokens_per_query": 695.4786680541104,
+          "accuracy_per_1k_tokens": 0.562575278108191,
+          "retrieval_latency_ms": 1.6163043623536235,
+          "records_retained": 297,
+          "generative_calls": 0,
+          "n_questions": 961,
+          "per_category": {
+            "temporal": 0.436241610738255,
+            "multi_hop": 0.14383561643835616,
+            "open_domain": 0.1111111111111111,
+            "single_hop": 0.2795969773299748,
+            "adversarial": 0.7767857142857143
+          },
+          "extra": {
+            "candidates": 1801,
+            "admitted": 1801,
+            "merged": 0,
+            "discarded": 0,
+            "evicted": 1504
+          }
+        },
+        "generative_judge": {
+          "accuracy": 0.5161290322580645,
+          "token_f1": 0.5206244514951877,
+          "tokens_per_query": 602.5608740894901,
+          "accuracy_per_1k_tokens": 0.8565591535261398,
+          "retrieval_latency_ms": 2.5870027117485432,
+          "records_retained": 1801,
+          "generative_calls": 1801,
+          "n_questions": 961,
+          "per_category": {
+            "temporal": 0.4966442953020134,
+            "multi_hop": 0.14383561643835616,
+            "open_domain": 0.13333333333333333,
+            "single_hop": 0.5566750629722922,
+            "adversarial": 0.7767857142857143
+          },
+          "extra": {
+            "candidates": 1801,
+            "admitted": 1801,
+            "merged": 0,
+            "discarded": 0
+          }
+        },
+        "ocmg": {
+          "accuracy": 0.4588969823100936,
+          "token_f1": 0.46456827109210985,
+          "tokens_per_query": 380.81893860561917,
+          "accuracy_per_1k_tokens": 1.205026682733689,
+          "retrieval_latency_ms": 21.969920062071388,
+          "records_retained": 825,
+          "generative_calls": 0,
+          "n_questions": 961,
+          "per_category": {
+            "temporal": 0.4966442953020134,
+            "multi_hop": 0.15753424657534246,
+            "open_domain": 0.1111111111111111,
+            "single_hop": 0.3929471032745592,
+            "adversarial": 0.8169642857142857
+          },
+          "extra": {
+            "candidates": 1801,
+            "admitted": 1093,
+            "merged": 0,
+            "discarded": 708,
+            "evicted": 268,
+            "write_threshold": 0.12646504866388894,
+            "retention_precision": {
+              "gap": 0.39580644309115026,
+              "ci_low": 0.36163704952560854,
+              "ci_high": 0.4307773673191975,
+              "auc": 0.8269810813107139
+            }
+          }
+        }
+      },
+      "estimator": {
+        "auc_mean": 0.7099450128925923,
+        "auc_std": 0.03628909018325838,
+        "auc_folds": [
+          0.652892561983471,
+          0.6867924528301887,
+          0.719147224456959,
+          0.7551440329218106,
+          0.7357487922705314
+        ],
+        "average_precision": 0.30808646170857695,
+        "brier": 0.14411369631334256,
+        "n_samples": 1364,
+        "positive_rate": 0.19134897360703812,
+        "feature_importance": {
+          "type_profile": 0.00029247993108305614,
+          "type_episodic": 1.3199806865937803e-05,
+          "type_factual": 0.0023717968758140808,
+          "token_length": 0.054615937724700615,
+          "n_entities": 0.017295915354501635,
+          "has_temporal_anchor": -0.0001903551095410627,
+          "n_sentences": 0.014488524852110007,
+          "digit_ratio": 0.01229596745900241,
+          "max_similarity": 0.02828162830038585,
+          "mean_top5_similarity": 0.022017972579137977,
+          "novelty": 0.014651090894564822,
+          "mean_idf": 0.06392388574525065,
+          "max_idf": 0.04157383381443154,
+          "unique_token_ratio": 0.05641180618515158,
+          "rare_term_count": 0.0944182185123817,
+          "near_duplicate": 0.0,
+          "session_index_norm": 0.027967611842310936,
+          "position_in_session": 0.030072633674096693,
+          "is_user": 0.0,
+          "is_assistant": 0.0,
+          "turn_span": 0.001746542866372791,
+          "modifies_existing": 0.0007301577376920721,
+          "contradicts_existing": 0.0,
+          "retrieval_count": 0.0,
+          "log_retrieval_count": 0.0,
+          "recency_gap": 0.0,
+          "running_utility": 0.0,
+          "credit_total": 0.0,
+          "weight_total": 0.0,
+          "ever_retrieved": 0.0
+        }
+      },
+      "label_validation": {
+        "n": 1364,
+        "outcome_positive_rate": 0.19134897360703812,
+        "evidence_positive_rate": 0.40615835777126097,
+        "precision": 1.0,
+        "recall": 0.4711191335740072,
+        "f1": 0.6404907975460122,
+        "kappa": 0.5140843700454241,
+        "true_positives": 261,
+        "false_positives": 0,
+        "false_negatives": 293,
+        "estimator_auc_vs_evidence": 0.7237264340152427
+      },
+      "targets": {
+        "accuracy_retention": {
+          "value": 0.8151571164510165,
+          "target": 0.95,
+          "met": false
+        },
+        "token_reduction": {
+          "value": 0.3679992263336678,
+          "target": 0.4,
+          "met": false
+        },
+        "estimator_auc": {
+          "value": 0.7099450128925923,
+          "target": 0.7,
+          "met": true
+        }
+      },
+      "significance": {
+        "ocmg_vs_full_context": {
+          "delta": -0.10405827263267436,
+          "ci_low": -0.14464099895941723,
+          "ci_high": -0.06451612903225812,
+          "p_value": 0.0
+        },
+        "ocmg_vs_naive_rag": {
+          "delta": -0.057232049947970876,
+          "ci_low": -0.0811654526534859,
+          "ci_high": -0.034339229968782525,
+          "p_value": 0.0
+        },
+        "ocmg_vs_append_all": {
+          "delta": -0.057232049947970876,
+          "ci_low": -0.0811654526534859,
+          "ci_high": -0.034339229968782525,
+          "p_value": 0.0
+        },
+        "ocmg_vs_decay": {
+          "delta": 0.06763787721123826,
+          "ci_low": 0.04058272632674298,
+          "ci_high": 0.09469302809573366,
+          "p_value": 0.0
+        },
+        "ocmg_vs_generative_judge": {
+          "delta": -0.057232049947970876,
+          "ci_low": -0.0811654526534859,
+          "ci_high": -0.034339229968782525,
+          "p_value": 0.0
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "n_runs": 3,
+    "conditions": {
+      "append_all": {
+        "accuracy": {
+          "mean": 0.5200762398123396,
+          "sd": 0.003376996450241228
+        },
+        "token_f1": {
+          "mean": 0.5250415622836305,
+          "sd": 0.003593796845434342
+        },
+        "tokens_per_query": {
+          "mean": 599.8849079553762,
+          "sd": 21.495688372923098
+        },
+        "accuracy_per_1k_tokens": {
+          "mean": 0.868215467459776,
+          "sd": 0.03541628484828794
+        },
+        "records_retained": {
+          "mean": 1820.3333333333333,
+          "sd": 175.26424494332994
+        }
+      },
+      "decay": {
+        "accuracy": {
+          "mean": 0.3990895004244783,
+          "sd": 0.031380867302214406
+        },
+        "token_f1": {
+          "mean": 0.4058376420830814,
+          "sd": 0.03127134871098372
+        },
+        "tokens_per_query": {
+          "mean": 690.1145598080581,
+          "sd": 7.15967338261983
+        },
+        "accuracy_per_1k_tokens": {
+          "mean": 0.5787986082854485,
+          "sd": 0.0514137612403408
+        },
+        "records_retained": {
+          "mean": 302.6666666666667,
+          "sd": 27.644569488820444
+        }
+      },
+      "full_context": {
+        "accuracy": {
+          "mean": 0.5730403538800465,
+          "sd": 0.007309229284902921
+        },
+        "token_f1": {
+          "mean": 0.5768846436824709,
+          "sd": 0.007544661483502509
+        },
+        "tokens_per_query": {
+          "mean": 15365.538240038055,
+          "sd": 1088.4703982955352
+        },
+        "accuracy_per_1k_tokens": {
+          "mean": 0.03748716873700419,
+          "sd": 0.002796173176629821
+        },
+        "records_retained": {
+          "mean": 1820.3333333333333,
+          "sd": 175.26424494332994
+        }
+      },
+      "generative_judge": {
+        "accuracy": {
+          "mean": 0.5200762398123396,
+          "sd": 0.003376996450241228
+        },
+        "token_f1": {
+          "mean": 0.5250415622836305,
+          "sd": 0.003593796845434342
+        },
+        "tokens_per_query": {
+          "mean": 599.8849079553762,
+          "sd": 21.495688372923098
+        },
+        "accuracy_per_1k_tokens": {
+          "mean": 0.868215467459776,
+          "sd": 0.03541628484828794
+        },
+        "records_retained": {
+          "mean": 1820.3333333333333,
+          "sd": 175.26424494332994
+        }
+      },
+      "naive_rag": {
+        "accuracy": {
+          "mean": 0.5200762398123396,
+          "sd": 0.003376996450241228
+        },
+        "token_f1": {
+          "mean": 0.5250415622836305,
+          "sd": 0.003593796845434342
+        },
+        "tokens_per_query": {
+          "mean": 599.8849079553762,
+          "sd": 21.495688372923098
+        },
+        "accuracy_per_1k_tokens": {
+          "mean": 0.868215467459776,
+          "sd": 0.03541628484828794
+        },
+        "records_retained": {
+          "mean": 1820.3333333333333,
+          "sd": 175.26424494332994
+        }
+      },
+      "ocmg": {
+        "accuracy": {
+          "mean": 0.46270351442518926,
+          "sd": 0.004263742185486774
+        },
+        "token_f1": {
+          "mean": 0.46903147147815966,
+          "sd": 0.004202764841882414
+        },
+        "tokens_per_query": {
+          "mean": 405.3823226110107,
+          "sd": 18.064877300082415
+        },
+        "accuracy_per_1k_tokens": {
+          "mean": 1.143522738509249,
+          "sd": 0.04835900082781165
+        },
+        "records_retained": {
+          "mean": 819.0,
+          "sd": 50.80026246651356
+        }
+      }
+    },
+    "label_validation": {
+      "precision": {
+        "mean": 1.0,
+        "sd": 0.0
+      },
+      "recall": {
+        "mean": 0.4392127548207991,
+        "sd": 0.04792183106588827
+      },
+      "kappa": {
+        "mean": 0.47349728167252025,
+        "sd": 0.057913179650378566
+      },
+      "estimator_auc_vs_evidence": {
+        "mean": 0.7087014600034459,
+        "sd": 0.012192960699331287
+      },
+      "evidence_positive_rate": {
+        "mean": 0.42512524176313793,
+        "sd": 0.02169438255367968
+      },
+      "outcome_positive_rate": {
+        "mean": 0.1856969037129578,
+        "sd": 0.011851454842632544
+      },
+      "n_runs": 3
+    },
+    "targets": {
+      "accuracy_retention": {
+        "mean": 0.8075428730138968,
+        "sd": 0.009600950669055133,
+        "target": 0.95,
+        "met": false
+      },
+      "token_reduction": {
+        "mean": 0.3235379763938005,
+        "sd": 0.0355982314522069,
+        "target": 0.4,
+        "met": false
+      },
+      "estimator_auc": {
+        "mean": 0.7085299905870723,
+        "sd": 0.015605434781553174,
+        "target": 0.7,
+        "met": true
+      }
+    }
+  }
+}

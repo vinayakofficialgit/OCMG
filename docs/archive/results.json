@@ -1,0 +1,162 @@
+[
+  {
+    "full_context": {
+      "accuracy": 0.32894736842105265,
+      "token_f1": 0.32894736842105265,
+      "tokens_per_query": 758.85,
+      "records": 1128,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.21,
+        "multi_hop": 0.13333333333333333,
+        "temporal": 0.25,
+        "adversarial": 1.0
+      }
+    },
+    "naive_rag": {
+      "accuracy": 0.44473684210526315,
+      "token_f1": 0.44473684210526315,
+      "tokens_per_query": 119.71315789473684,
+      "records": 1128,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.365,
+        "multi_hop": 0.2833333333333333,
+        "temporal": 0.31666666666666665,
+        "adversarial": 1.0
+      }
+    },
+    "append_all": {
+      "accuracy": 0.4605263157894737,
+      "token_f1": 0.4605263157894737,
+      "tokens_per_query": 122.25,
+      "records": 631,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.38,
+        "multi_hop": 0.3333333333333333,
+        "temporal": 0.31666666666666665,
+        "adversarial": 1.0
+      }
+    },
+    "decay": {
+      "accuracy": 0.4394736842105263,
+      "token_f1": 0.4394736842105263,
+      "tokens_per_query": 122.43947368421053,
+      "records": 533,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.34,
+        "multi_hop": 0.3,
+        "temporal": 0.35,
+        "adversarial": 1.0
+      }
+    },
+    "generative_judge": {
+      "accuracy": 0.45789473684210524,
+      "token_f1": 0.45789473684210524,
+      "tokens_per_query": 122.25,
+      "records": 631,
+      "generative_calls": 1128,
+      "per_category": {
+        "single_hop": 0.39,
+        "multi_hop": 0.2833333333333333,
+        "temporal": 0.31666666666666665,
+        "adversarial": 1.0
+      }
+    },
+    "ocmg": {
+      "accuracy": 0.45526315789473687,
+      "token_f1": 0.45526315789473687,
+      "tokens_per_query": 23.17105263157895,
+      "records": 495,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.365,
+        "multi_hop": 0.36666666666666664,
+        "temporal": 0.3,
+        "adversarial": 1.0
+      }
+    }
+  },
+  {
+    "full_context": {
+      "accuracy": 0.3684210526315789,
+      "token_f1": 0.3684210526315789,
+      "tokens_per_query": 759.3,
+      "records": 1118,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.275,
+        "multi_hop": 0.18333333333333332,
+        "temporal": 0.23333333333333334,
+        "adversarial": 1.0
+      }
+    },
+    "naive_rag": {
+      "accuracy": 0.46578947368421053,
+      "token_f1": 0.46578947368421053,
+      "tokens_per_query": 134.2078947368421,
+      "records": 1118,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.385,
+        "multi_hop": 0.3,
+        "temporal": 0.36666666666666664,
+        "adversarial": 1.0
+      }
+    },
+    "append_all": {
+      "accuracy": 0.49473684210526314,
+      "token_f1": 0.49473684210526314,
+      "tokens_per_query": 133.00526315789475,
+      "records": 642,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.41,
+        "multi_hop": 0.38333333333333336,
+        "temporal": 0.38333333333333336,
+        "adversarial": 1.0
+      }
+    },
+    "decay": {
+      "accuracy": 0.4868421052631579,
+      "token_f1": 0.4868421052631579,
+      "tokens_per_query": 133.33157894736843,
+      "records": 522,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.415,
+        "multi_hop": 0.36666666666666664,
+        "temporal": 0.3333333333333333,
+        "adversarial": 1.0
+      }
+    },
+    "generative_judge": {
+      "accuracy": 0.4368421052631579,
+      "token_f1": 0.4368421052631579,
+      "tokens_per_query": 133.00526315789475,
+      "records": 642,
+      "generative_calls": 1118,
+      "per_category": {
+        "single_hop": 0.36,
+        "multi_hop": 0.26666666666666666,
+        "temporal": 0.3,
+        "adversarial": 1.0
+      }
+    },
+    "ocmg": {
+      "accuracy": 0.5,
+      "token_f1": 0.5,
+      "tokens_per_query": 26.426315789473684,
+      "records": 487,
+      "generative_calls": 0,
+      "per_category": {
+        "single_hop": 0.43,
+        "multi_hop": 0.35,
+        "temporal": 0.38333333333333336,
+        "adversarial": 1.0
+      }
+    }
+  }
+]

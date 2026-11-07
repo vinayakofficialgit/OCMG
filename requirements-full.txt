@@ -1,0 +1,19 @@
+# Real models, needed for results you report in the thesis.
+# Install after requirements.txt. A CUDA build of torch is needed for the reader:
+#   https://pytorch.org/get-started/locally/
+-r requirements.txt
+sentence-transformers>=2.2   # BAAI/bge-small-en-v1.5 embedder
+transformers>=4.44           # frozen backbone (HFReader)
+torch>=2.1
+
+# Windows only, and only when torch fails to import with WinError 126.
+# torch_cpu.dll imports vcruntime140_threads.dll, which ships with the Visual
+# C++ 2015-2022 redistributable from about 14.30; a machine carrying the
+# VS2019 runtime (14.28) has vcruntime140.dll and vcruntime140_1.dll but not
+# that one. This wheel carries the same Microsoft-signed DLL, so it repairs
+# the import without administrator rights.
+#   python scripts/fix_torch_dll.py
+# does the whole thing: downloads it, extracts the single DLL into
+# torch/lib, and re-checks the import.
+msvc-runtime>=14.40 ; sys_platform == "win32"
+accelerate>=0.30

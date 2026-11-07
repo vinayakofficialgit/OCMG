@@ -1,0 +1,61 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "1. Verify dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/verify_data.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "2. Run experiment (LoCoMo, quick, CPU)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/run_experiment.py",
+            "args": ["--dataset", "locomo", "--path", "data/locomo10.json",
+                     "--embedder", "hashing", "--reader", "simulated", "--runs", "1"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "3. Build report (tables + figures)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/make_report.py",
+            "args": ["--input", "results/run_locomo.json"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "4. Run experiment (LoCoMo, 3 seeds, CPU)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/run_experiment.py",
+            "args": ["--dataset", "locomo", "--path", "data/locomo10.json",
+                     "--embedder", "hashing", "--reader", "simulated", "--runs", "3"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "5. Run experiment (real models, GPU)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/run_experiment.py",
+            "args": ["--dataset", "locomo", "--path", "data/locomo10.json",
+                     "--embedder", "sentence-transformers", "--reader", "hf", "--runs", "3",
+                     "--out", "results/run_locomo_real.json"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Debug current file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        }
+    ]
+}
