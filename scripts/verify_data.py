@@ -56,21 +56,39 @@ def main() -> int:
         for q in questions:
             ev_counts.setdefault(q.category, []).append(len(q.evidence_ids))
 
-    print("LoCoMo dataset check")
+    n_drop = len(report["evidence_unresolved"])
+    print("LoCoMo dataset check   data/locomo10.json parsed by ocmg/data/benchmarks.py")
     print("-" * 72)
-    print(f"conversations : {report['conversations']}")
-    print(f"sessions      : {report['sessions']}")
-    print(f"turns         : {report['turns']}  (image turns with captions: {report['image_turns']})")
-    print(f"questions     : {report['questions']}")
-    print(f"evidence ids  : {report['evidence_ids']}  (dropped, not in release: "
-          f"{len(report['evidence_unresolved'])})")
+    print(f"conversations : {report['conversations']:<6}  two-person dialogues; "
+          "each gets its own memory store")
+    print(f"sessions      : {report['sessions']:<6}  dated chat sessions, days to "
+          "weeks apart")
+    print(f"turns         : {report['turns']:<6}  one utterance each; "
+          f"{report['image_turns']} share a photo, kept as its BLIP caption")
+    print(f"questions     : {report['questions']:<6}  each with a gold answer and "
+          "the ids of the turns that support it")
+    print(f"evidence ids  : {report['evidence_ids']:<6}  question-to-turn links; "
+          f"{n_drop} dropped because they point at turns missing from the release")
     print()
-    print(f"{'category':<14}{'questions':>10}{'mean evidence':>15}{'multi-evidence':>16}")
+    print("mean evidence = supporting turns per question · multi-evidence = "
+          "share needing more than one turn")
+    meaning = {
+        "adversarial": "unanswerable trap; correct = abstain (id marks the trap turn)",
+        "multi_hop": "answer joins several turns",
+        "open_domain": "needs the conversation plus general knowledge",
+        "single_hop": "one turn holds the answer",
+        "temporal": "answer is a date or time order",
+    }
+    print(f"{'category':<14}{'questions':>10}{'mean evidence':>15}{'multi-evidence':>16}"
+          "  what it tests")
     for cat in sorted(ev_counts):
         vals = ev_counts[cat]
         multi = sum(v > 1 for v in vals) / len(vals)
-        print(f"{cat:<14}{len(vals):>10}{statistics.mean(vals):>15.2f}{multi:>15.0%}")
+        print(f"{cat:<14}{len(vals):>10}{statistics.mean(vals):>15.2f}{multi:>15.0%}"
+              f"   {meaning.get(cat, '')}")
     print()
+    print("words = whitespace-separated words in all turns · date range = first "
+          "to last session")
     print(f"{'conversation':<14}{'sessions':>9}{'turns':>7}{'words':>8}{'questions':>10}"
           f"  {'date range'}")
     for row in per_conv:
@@ -91,7 +109,7 @@ def main() -> int:
             },
             "per_conversation": per_conv,
         }, fh, indent=2)
-    print(f"\nwrote {args.out}")
+    print(f"\nwrote {args.out}   these counts as JSON, for the dataset table in Ch 4")
     return 0
 
 

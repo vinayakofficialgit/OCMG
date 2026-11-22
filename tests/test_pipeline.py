@@ -1151,3 +1151,82 @@ def test_uncapped_counterfactual_still_ablates_every_record():
         assert len(b) - 1 == len(b[0]), (
             "with no cap every retrieved record must get a counterfactual"
         )
+
+
+# --------------------------------------------------------------------------
+# An estimator that was never fitted reports 0.5, and that is a declared
+# fallback rather than a measurement. These assert that nothing downstream
+# presents it as one - including the mean over seeds, where the number
+# actually gets read.
+# --------------------------------------------------------------------------
+
+
+def test_fit_refuses_a_single_class_and_says_it_did_not_fit():
+    est = UtilityEstimator(EstimatorConfig())
+    X = np.random.default_rng(0).normal(size=(40, N_FEATURES)).astype(np.float32)
+    y = np.zeros(40, dtype=int)          # one class only
+    groups = np.arange(40) % 4
+    rep = est.fit(X, y, groups)
+    assert rep.fitted is False
+    assert rep.auc_mean == 0.5
+    assert rep.auc_folds == []
+    assert est.model is None
+
+
+def test_fit_reports_fitted_when_both_classes_are_present():
+    rng = np.random.default_rng(0)
+    X = rng.normal(size=(120, N_FEATURES)).astype(np.float32)
+    y = np.array([i % 2 for i in range(120)])
+    groups = np.arange(120) % 6
+    rep = UtilityEstimator(EstimatorConfig()).fit(X, y, groups)
+    assert rep.fitted is True
+    assert rep.auc_folds, "a fitted model must have scored at least one fold"
+
+
+def _estimator_run(auc, fitted, seed=0):
+    """One seed's dict as run_to_dict would emit it, estimator part only."""
+    return {
+        "seed": seed,
+        "conditions": {},
+        "estimator": {"auc_mean": auc, "n_samples": 500,
+                      "positive_rate": 0.3},
+        "targets": {"estimator_auc": {
+            "value": auc, "target": 0.70,
+            "met": bool(auc >= 0.70 and fitted),
+            "measurable": fitted, "n_samples": 500, "positive_rate": 0.3,
+        }},
+    }
+
+
+def test_an_unfitted_estimator_cannot_meet_the_target():
+    from ocmg.reporting import aggregate_runs
+    runs = [_estimator_run(0.5, fitted=False)]
+    agg = aggregate_runs(runs)
+    entry = agg["targets"]["estimator_auc"]
+    assert entry["met"] is False
+    assert entry["measurable"] is False
+
+
+def test_aggregate_does_not_launder_one_unmeasurable_seed():
+    """Two good seeds and one fallback must not average into a pass.
+
+    0.80, 0.80 and 0.50 average to 0.70, which clears the target exactly.
+    Without the guard the mean would be reported as met, on the strength of a
+    seed where no model was ever built.
+    """
+    from ocmg.reporting import aggregate_runs
+    runs = [_estimator_run(0.80, True, 0), _estimator_run(0.80, True, 1),
+            _estimator_run(0.50, False, 2)]
+    agg = aggregate_runs(runs)
+    entry = agg["targets"]["estimator_auc"]
+    assert entry["mean"] == pytest.approx(0.70)
+    assert entry["met"] is False, "a fallback seed must void the mean"
+    assert entry["measurable"] is False
+
+
+def test_aggregate_still_passes_when_every_seed_was_fitted():
+    from ocmg.reporting import aggregate_runs
+    runs = [_estimator_run(0.80, True, i) for i in range(3)]
+    entry = aggregate_runs(runs)["targets"]["estimator_auc"]
+    assert entry["met"] is True
+    assert entry.get("measurable") is not False

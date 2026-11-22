@@ -93,6 +93,11 @@ def main() -> int:
     ap.add_argument("--with-decay", action="store_true",
                     help="also run the recency baseline at each fraction")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--save", default=None, metavar="FILE",
+                    help="also write everything printed to FILE as UTF-8 "
+                         "text; use this instead of | Tee-Object")
+    ap.add_argument("--save-append", action="store_true",
+                    help=argparse.SUPPRESS)
     ap.add_argument("--no-color", action="store_true")
     args = ap.parse_args()
 
@@ -100,6 +105,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
+    C.save_to(args.save, append=args.save_append)
     C.refresh_glyphs()
     if args.no_color:
         C.set_color(False)
@@ -116,6 +122,9 @@ def main() -> int:
         "PIPELINE VALIDATION.  Simulated reader and/or hashing embedder: "
         "these numbers test the machinery, they are not findings.",
         "warning", glyph=C.G.warn))
+    key = C.color_key()
+    if key:
+        print(key)
 
     data = load_dataset(args.dataset, args.path)
     plan = arm_plan(args)
@@ -127,6 +136,11 @@ def main() -> int:
         baseline = labels[0]
     per_arm: dict = {label: [] for label in labels}
 
+    print(C.note(
+        "each arm = one forgetting setting on the same store and estimator · "
+        "acc = share correct · tok = memory word tokens per question · "
+        "ceiling = share of gold evidence still in the store (the best any "
+        "reader could do) · evicted = records forgotten", "muted"))
     for seed in args.seeds:
         print(C.section("", f"SEED {seed}"))
 
@@ -139,7 +153,8 @@ def main() -> int:
         pa = runner.run_phase_a(warm)
         report = runner.estimator.fit(pa.X, pa.y, pa.groups)
         print(C.kv("estimator ROC-AUC", f"{report.auc_mean:.3f}",
-                   hint=f"{report.n_samples:,} labelled records, reused by every arm"))
+                   hint=f"trained once on {report.n_samples:,} labelled "
+                        "records, reused by every arm"))
         print("")
 
         for label, signal, quantile, kind in plan:
@@ -185,7 +200,7 @@ def main() -> int:
                             f"   evicted {policy.stats['evicted']:,}", width=12))
 
     # ------------------------------------------------------------- summary
-    print(C.section("", "MEAN OVER SEEDS"))
+    print(C.section("", "MEAN OVER SEEDS   sd = spread across seeds"))
     rows = []
     for arm in labels:
         runs = per_arm[arm]
@@ -205,7 +220,9 @@ def main() -> int:
 
     if len(labels) > 1:
         print("")
-        print(C.note(f"paired bootstrap against {baseline}, per seed", "muted"))
+        print(C.note(f"each arm minus {baseline} on the same questions, per "
+                     "seed · 95% CI from 10,000 paired resamples · p < 0.05 = "
+                     "significant", "muted"))
         sig_rows = []
         for arm in labels:
             if arm == baseline:
@@ -214,10 +231,13 @@ def main() -> int:
                 base = per_arm[baseline][i]
                 bs = paired_bootstrap(run["correct"], base["correct"])
                 crosses = bs["ci_low"] <= 0.0 <= bs["ci_high"]
-                verdict = (C.paint(f"{C.G.flat} indistinguishable", "warning")
+                verdict = (C.paint(f"{C.G.flat} no real difference: CI includes 0",
+                                   "warning")
                            if crosses else
-                           C.paint(f"{C.G.ok} better", "good") if bs["delta"] > 0
-                           else C.paint(f"{C.G.bad} worse", "critical"))
+                           C.paint(f"{C.G.ok} better: whole CI above 0", "good")
+                           if bs["delta"] > 0
+                           else C.paint(f"{C.G.bad} worse: whole CI below 0",
+                                        "critical"))
                 sig_rows.append([
                     f"{arm} vs {baseline}", str(run["seed"]), f"{bs['delta']:+.3f}",
                     f"[{bs['ci_low']:+.3f}, {bs['ci_high']:+.3f}]",
@@ -238,7 +258,7 @@ def main() -> int:
         with open(args.out, "w", encoding="utf8") as fh:
             json.dump(payload, fh, indent=2)
         print(C.section("", "OUTPUT"))
-        print(C.kv("written", args.out))
+        print(C.kv("written", args.out, hint="per-arm, per-seed numbers as JSON"))
     print("")
     return 0
 

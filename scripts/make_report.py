@@ -46,7 +46,10 @@ plt.rcParams.update({
 
 
 def _mean_sd(runs: List[dict], name: str, key: str):
-    vals = [r["conditions"][name][key] for r in runs if name in r["conditions"]]
+    # .get: a results file written before a metric existed simply lacks it,
+    # and the column is then left blank rather than failing the whole report.
+    vals = [r["conditions"][name].get(key, np.nan)
+            for r in runs if name in r["conditions"]]
     return float(np.mean(vals)), float(np.std(vals))
 
 
@@ -55,6 +58,24 @@ def _stamp(fig, reportable: bool) -> None:
         # Below the axes, outside the plot area; bbox_inches="tight" keeps it.
         fig.text(0.99, -0.04, "Pipeline validation (simulated reader) - not a finding",
                  ha="right", va="top", fontsize=7, color="#a33", style="italic")
+
+
+def _target_status(t: dict) -> str:
+    """Met / Not met / why the number cannot be read as either.
+
+    Two guards upstream can void a target rather than fail it, and both are
+    lost if the status is just `met`. Retention goes vacuous when full
+    context is not an upper bound, so the ratio has no ceiling to measure
+    against; the estimator AUC goes vacuous when nothing was fitted and the
+    0.5 is a declared fallback. Printing "Not met" for either is wrong twice
+    over - it claims a measurement happened, and for retention it contradicts
+    its own arithmetic, since 1.052 clears a 0.95 target.
+    """
+    if t.get("full_context_is_ceiling") is False:
+        return "Not interpretable (full context is not a ceiling)"
+    if t.get("measurable") is False:
+        return "Not measurable (estimator was never fitted)"
+    return "Met" if t.get("met") else "Not met"
 
 
 def _write_csv(path: str, header: List[str], rows: List[list]) -> None:
@@ -86,14 +107,16 @@ def main() -> int:
     for n in names:
         acc, acc_sd = _mean_sd(runs, n, "accuracy")
         f1, _ = _mean_sd(runs, n, "token_f1")
+        lf1, _ = _mean_sd(runs, n, "locomo_f1")
         tok, _ = _mean_sd(runs, n, "tokens_per_query")
         apk, _ = _mean_sd(runs, n, "accuracy_per_1k_tokens")
         rec, _ = _mean_sd(runs, n, "records_retained")
         gen, _ = _mean_sd(runs, n, "generative_calls")
         main_rows.append([LABELS[n], f"{acc:.3f}", f"{acc_sd:.3f}", f"{f1:.3f}",
+                          f"{lf1:.3f}" if lf1 == lf1 else "",
                           f"{tok:.1f}", f"{apk:.3f}", f"{rec:.0f}", f"{gen:.0f}"])
     _write_csv(os.path.join(tdir, "main_results.csv"),
-               ["Condition", "Accuracy", "Accuracy SD", "Token F1", "Tokens per query",
+               ["Condition", "Accuracy", "Accuracy SD", "Token F1", "LoCoMo F1 (official)", "Tokens per query",
                 "Accuracy per 1k tokens", "Records retained", "Generative calls"], main_rows)
 
     # ------------------------------------------------------ per-category table
@@ -110,6 +133,33 @@ def main() -> int:
     _write_csv(os.path.join(tdir, "per_category_accuracy.csv"),
                ["Condition"] + [c.replace("_", " ").title() for c in cats], cat_rows)
 
+    # ------------------------------------------------------- grounding table
+    # Retrieval checked against LoCoMo's gold evidence ids, answers checked
+    # against their own prompt (ocmg/grounding.py). Absent in results files
+    # written before 21 Nov 2026, so the table is skipped rather than blank.
+    g_keys = [("evidence_recall", "Evidence recall"),
+              ("context_precision", "Context precision"),
+              ("evidence_hit_rate", "Evidence hit rate"),
+              ("answer_support", "Answer support"),
+              ("grounded_rate", "Grounded rate"),
+              ("hallucination_rate", "Hallucination rate"),
+              ("abstention_rate", "Abstention rate")]
+    g_rows = []
+    for n in names:
+        per_seed = [r["conditions"][n]["extra"].get("grounding") for r in runs
+                    if n in r["conditions"]]
+        per_seed = [g for g in per_seed if g]
+        if not per_seed:
+            continue
+        row = [LABELS[n]]
+        for key, _ in g_keys:
+            vals = [g[key] for g in per_seed if g.get(key) is not None]
+            row.append(f"{np.mean(vals):.3f}" if vals else "")
+        g_rows.append(row)
+    if g_rows:
+        _write_csv(os.path.join(tdir, "grounding.csv"),
+                   ["Condition"] + [label for _, label in g_keys], g_rows)
+
     # ------------------------------------------------------------ targets
     agg_t = payload.get("aggregate", {}).get("targets", {})
     target_rows = []
@@ -119,7 +169,7 @@ def main() -> int:
         if key in agg_t:
             t = agg_t[key]
             target_rows.append([label, f"{t['mean']:.3f}", f"{t['sd']:.3f}",
-                                f">= {t['target']:.2f}", "Met" if t["met"] else "Not met"])
+                                f">= {t['target']:.2f}", _target_status(t)])
     _write_csv(os.path.join(tdir, "targets.csv"),
                ["Measure", "Value (mean)", "SD", "Target", "Status"], target_rows)
 
@@ -273,8 +323,9 @@ def main() -> int:
                   "the hashing embedder. Use these numbers to check the pipeline, not as "
                   "thesis findings.", ""]
     lines += ["## Main results", "",
-              "| Condition | Accuracy | SD | Token F1 | Tokens/query | Acc per 1k tokens | Records | Gen. calls |",
-              "|---|---|---|---|---|---|---|---|"]
+              "| Condition | Accuracy | SD | Token F1 | LoCoMo F1 (official) | Tokens/query "
+              "| Acc per 1k tokens | Records | Gen. calls |",
+              "|---|---|---|---|---|---|---|---|---|"]
     lines += ["| " + " | ".join(r) + " |" for r in main_rows]
     lines += ["", "## Targets", "", "| Measure | Value | SD | Target | Status |", "|---|---|---|---|---|"]
     lines += ["| " + " | ".join(r) + " |" for r in target_rows]
@@ -295,9 +346,12 @@ def main() -> int:
     with open(os.path.join(args.outdir, "summary.md"), "w", encoding="utf8") as fh:
         fh.write("\n".join(lines) + "\n")
 
-    print(f"tables  -> {tdir}")
-    print(f"figures -> {fdir}")
-    print(f"summary -> {os.path.join(args.outdir, 'summary.md')}")
+    print(f"input    {args.input}   results JSON from run_experiment.py")
+    print(f"tables   {tdir}   {len(os.listdir(tdir))} CSVs for the thesis tables")
+    print(f"figures  {fdir}   {len(os.listdir(fdir))} PNGs, 300 dpi"
+          + ("" if reportable else ", stamped 'pipeline validation'"))
+    print(f"summary  {os.path.join(args.outdir, 'summary.md')}   "
+          "all of it as one readable page")
     return 0
 
 

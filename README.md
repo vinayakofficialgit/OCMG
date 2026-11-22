@@ -256,6 +256,20 @@ no validation stamp.
    precision, recall and Cohen's kappa of the outcome labels against it, plus the estimator's
    ROC-AUC against evidence directly. This is what answers the first marker's objection that
    crediting every retrieved record does not prove each one was useful.
+9. **Real-reader prompt carries session dates; official LoCoMo scorer added (21 Nov 2026).**
+   The prompt showed record text only, so a real model could not answer 254 of the 321
+   temporal questions (the turn says "yesterday", the date is in the session header). Each
+   record is now shown as `[i] (type, 8 May 2023) text`, as the official LoCoMo prompt does.
+   The abstention reply is now "Not mentioned in the conversation", which the official
+   scorer accepts; the old phrase scored 0 under it. `ocmg/locomo_eval.py` reproduces
+   `task_eval/evaluation.py` (stemmed F1, multi-hop split, open-domain `;`, adversarial
+   substring rule) and agrees with it on all 15,888 pairs of a full cross-check. It is
+   reported as `locomo_f1` beside accuracy - for comparison with published numbers only,
+   never fed back. Simulated-reader numbers are unchanged (seed 0 re-run bit-identical);
+   under that reader LoCoMo F1 just mirrors accuracy, so it only means something with `--reader hf`.
+   Also fixed: `run_experiment.py --write-quantile` defaulted to 0.35 and so re-enabled the
+   admission gate on every main run, against config's measured optimum of 0.0. It now reads
+   the config. Seed 0: OCMG 0.611 -> 0.632, baselines unchanged.
 
 ---
 

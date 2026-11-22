@@ -38,6 +38,13 @@ from .config import EstimatorConfig
 from .features import FEATURE_NAMES, QUERY_TYPE_NAMES, query_type_onehot
 
 
+# Below this many rows in either class, fit() declines to fit at all. It
+# lives here, next to the check that uses it, because the pre-flight warning
+# in experiment.py has to quote the same number - a warning that disagreed
+# with the behaviour it warns about would be worse than none.
+MIN_ROWS_PER_CLASS = 10
+
+
 @dataclass
 class EstimatorReport:  # noqa: D101
     auc_mean: float
@@ -47,6 +54,12 @@ class EstimatorReport:  # noqa: D101
     brier: float
     n_samples: int
     positive_rate: float
+    # False when fit() bailed out before fitting anything, because one class
+    # had fewer than 10 rows. The 0.5 it reports then is a declared fallback,
+    # not a measured value, and every consumer has to say so rather than
+    # print "ROC-AUC 0.500, target not met" as though a model had been tried
+    # and found wanting. A tiny run makes this the normal case.
+    fitted: bool = True
     feature_importance: Dict[str, float] = field(default_factory=dict)
     oof_predictions: Optional[np.ndarray] = None
     oof_labels: Optional[np.ndarray] = None
@@ -165,13 +178,14 @@ class UtilityEstimator:
         self._fallback_rate = float(y.mean()) if len(y) else 0.5
 
         n_pos, n_neg = int(y.sum()), int((1 - y).sum())
-        if n_pos < 10 or n_neg < 10:
+        if n_pos < MIN_ROWS_PER_CLASS or n_neg < MIN_ROWS_PER_CLASS:
             # Not enough signal to fit anything trustworthy. Degrade to the
             # base rate rather than pretending to a model.
             self.model = None
             self.report = EstimatorReport(
                 auc_mean=0.5, auc_std=0.0, auc_folds=[], ap_mean=self._fallback_rate,
                 brier=0.25, n_samples=len(y), positive_rate=self._fallback_rate,
+                fitted=False,
             )
             return self.report
 

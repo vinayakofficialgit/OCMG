@@ -11,7 +11,7 @@ You are the engineering and research assistant for an MSc dissertation. Your job
 You do **not** write thesis prose. See §2.1. Everything else in this file is yours to drive.
 
 Start every session by:
-1. Running `python -m pytest` and confirming the count (currently 46 passing).
+1. Running `python -m pytest` and confirming the count (currently 90 passing).
 2. Reading `README.md` section 7 (fix history) and `results/summary.md` if present.
 3. Stating which backlog item (§9) you are about to work on, then waiting for "let's do it" unless the user already said so.
 
@@ -270,11 +270,40 @@ Figure tip: put the "pipeline validation" stamp outside the axes (negative y wit
 9. **Windows torch import (WinError 126) — diagnosed and repaired without administrator rights, 3 Nov 2026.** The error names `shm.dll`, which is a red herring: walking the import tables shows `shm.dll` resolves fine and `torch_cpu.dll` is the one importing **`VCRUNTIME140_THREADS.dll`**, which ships with the VC++ 2015-2022 redistributable from ~14.30 while this machine carries the VS2019 runtime (14.28) and so has `vcruntime140.dll` and `vcruntime140_1.dll` but not that one. The same Microsoft-signed DLL (verified Authenticode: *Microsoft Windows Software Compatibility Publisher*, 14.51.36247.0) is published in the `msvc-runtime` wheel, so `scripts/fix_torch_dll.py` downloads it, extracts that single file into `torch/lib` (which torch already adds to the DLL search path) and re-checks the import. Scoped to the venv, reversible by deleting one file, **no admin needed**. Do not go back to telling the user to install the redistributable.
    - Corollary for anyone debugging this again: a dependency walker reports `api-ms-win-crt-*.dll` as missing on a *healthy* system too, because those are API sets resolved through the apiset schema rather than by finding a file. They are not evidence of anything.
 
+10. **Three diagnosis traps hit in one session, 7 Nov 2026 — all three cost real time.**
+   - **A missing sentinel is not a dead job.** A 3-seed real-embedder run was declared dead because its log had no `PIPELINE_DONE` and its output file was four days stale. It was still running, finished cleanly, and the "zombie" PIDs recommended for `Stop-Process` were that run four days in. **Check `(Get-Process python).CPU` against elapsed time before concluding anything is hung**: a process pegging 4 cores is slow, not dead. The replacement 1-seed run duplicated seed 0 exactly (OCMG 0.6206 both), wasting ~72 minutes.
+   - **An exit code from a pipe is the last command's.** `pytest ... | tail -3` reports `tail`'s status, so a failing suite exits 0. Same shape as the Qwen download that reported success while erroring on a CDN chunk. Capture the real one: `cmd > log 2>&1; echo "EXIT=$?"`.
+   - **`-q` twice hides the result.** `pyproject.toml` already sets `addopts = "-q"`, so adding `-q` gives `-qq` and pytest prints no "N passed" line at all. Run `python -m pytest tests/` with no extra flag.
+   - **And buffering looks like hanging.** Piping Python through `grep` makes stdout block-buffered, so a 20-minute job prints nothing until it exits. Always `python -u` for anything backgrounded or redirected.
+
+11. **Nine of the thirty features are inactive on LoCoMo, verified 10 Nov 2026** (`python scripts/check_features.py`). Seven are **structurally** constant and that is not a bug: `retrieval_count`, `log_retrieval_count`, `recency_gap`, `running_utility`, `credit_total`, `weight_total`, `ever_retrieved` all describe a record's usage history, and write-time features are computed at admission, when the record has never been retrieved and carries no credit. The outcome feedback trains the **labels**; it cannot appear in the **features** at the moment admission is decided. This is the honest explanation for why `rare_term_count` dominates permutation importance and why the fitted model lands 0.008 *below* that one feature - there is little else in the matrix to learn from. Say it in the methodology rather than leaving nine zeros in an importance table for a marker to find.
+   - The other two are a real bug: `is_user` and `is_assistant` test `cand.speaker == "user"` / `== "assistant"` (`ocmg/features.py`), but LoCoMo speakers are personal names - `'John'` 1,017 turns, `'Tim'` 344, `'James'` 343 - so both predicates match **zero** turns and both columns are zero on every record. Silent: no error, no warning. It survived because the synthetic generator does use those labels.
+   - **Decision: do not change the feature vector.** Results already recorded at 30 features would stop being comparable, and the estimator already ignores a zero-variance column, so dropping them changes no number. LoCoMo is peer-to-peer dialogue between two named humans, so there is no "assistant" turn to map onto anyway. What must change is the writing: describe these two as inactive on this benchmark, never as features the model uses.
+
+12. **Real-reader prompt dates + official LoCoMo scorer, 21 Nov 2026** (README §7 item 9). `HFReader._prompt` shows each record as `[i] (type, 8 May 2023) text` - without it 254/321 temporal questions are unanswerable from the prompt, a defect the simulated reader cannot see because it never reads the prompt. Abstention reply is `HFReader.ABSTAIN_REPLY` = "Not mentioned in the conversation" (the official scorer rejects "unable to determine from memory"). `ocmg/locomo_eval.py` = exact replica of the official `evaluation.py`, 0 mismatches on 15,888 pairs; reported as `locomo_f1` / `locomo_f1_per_category`, comparability only. Needs `nltk`. Test count now 84.
+   - Same day: **`ocmg/grounding.py`** - retrieval checked against LoCoMo evidence ids (evidence recall, context precision, evidence hit; reader-independent, so valid now) and answers checked against their own prompt (lexical answer support, grounded rate, hallucination rate, correct/grounded quadrants; simulated-reader values test machinery only). In `RunResult.extra['grounding']`, terminal section 9, `tables/grounding.csv`. Scoring config is now `EvalConfig` (`cfg.evaluation`: judge, f1_threshold 0.6, grounded_support_threshold 0.5). Every terminal number now carries its meaning inline or in a column glossary. Seed 0: OCMG ctx precision 17.7% (2x others) but evidence recall 66.4% < naive 69.3% < append-all 72.0% (answerable questions only: grounding uses supporting_fact_ids, because LoCoMo gives adversarial questions an evidence id for the trap turn) - store-level, the mechanism behind the iso-cost loss. Walkthrough for showing the flow: `docs/PIPELINE_FLOW.md`. Tests 90.
+   - 22 Nov: `run_experiment.py --detail auto|full|brief` (auto = full for 1 seed, brief for several: one row per seed + mean with grounding and better/worse/no-difference seed counts), so `run_all.py` output is ~10x shorter. Display fixes: model gain within 0.005 reads 'same as the model' (rarity ablation said 'model does better' at +0.000); zero-importance features no longer listed. 3-seed main run after the gate fix reproduces OCMG 0.615 / naive 0.613 / AUC 0.728.
+   - 22 Nov: `--save FILE` on run_experiment / compare_forgetting / run_all writes a UTF-8, colour-free copy of the output (run_all passes it to every step, append mode). Use it instead of `| Tee-Object`: PowerShell 5.1 decodes piped UTF-8 with the OEM code page (mojibake). console.py now falls back to ASCII glyphs on a Windows pipe (OCMG_UTF8=1 overrides). make_report summary.md main table header was missing the LoCoMo F1 column (rows shifted one place) - fixed. make_report defaults to results/run_locomo.json; for the 3-seed set pass `--input results/full/run_main.json`.
+   - 22 Nov: `scripts/make_results_page.py [--dir results/full]` writes `<dir>/RESULTS.md` + 4 charts in `<dir>/figures/` (accuracy vs tokens, evidence recall/precision, forgetting fraction, forgetting criterion as a dot plot) from the run_all JSONs; population sd to match the console. run_all.py calls it at the end when every step is ok. This is the page to show (VS Code Ctrl+Shift+V), not the .txt log.
+   - 22 Nov: docs/PIPELINE_FLOW.md gained section 2 'What we are leveraging' (data, frozen models, libraries, methods, compute, each with its file) and four PNG diagrams in docs/figures/ drawn by `scripts/make_flow_diagrams.py` (pipeline, record journey, LOO learning loop, verification map). PNG not Mermaid: VS Code's built-in preview does not render Mermaid and no extension is installed. Sections renumbered 1-11.
+   - 22 Nov: each flow in PIPELINE_FLOW.md now has a 'Step by step' description under its diagram (16 steps for the run, 9 for the record, 9 for the LOO loop, 6 checks for verification). `scripts/make_doc_png.py [--doc X.md]` renders a Markdown doc to `docs/PIPELINE_FLOW.png` (one tall image) + `docs/pipeline_flow_pages/NN_*.png` (one per section) via markdown-it + headless Edge + PIL; re-run after editing the doc.
+   - 22 Nov: terminal redesign in ocmg/console.py: WIDTH follows the terminal (78-112); boxed banner; '━━ N · NAME  subtitle' section headers; bold kv values with hints wrapped under their own column; tables wrap their last text column instead of overflowing; OCMG row emphasised in conditions and grounding tables; status badges use non-breaking spaces; new `C.card()`. experiment.summarise ends with an 'AT A GLANCE' card (RQ1 AUC + best single feature, label precision, OCMG vs each baseline with bootstrap verdict, token cost, evidence recall/precision vs naive RAG). _DESCRIBE and grounding 'reading' texts shortened to fit one line at 120 cols. `scripts/terminal_to_png.py [--record out.txt -- script args]` renders terminal output (ANSI colours kept) to PNG via headless Edge.
+   - 22 Nov: every section is now a bordered table (`C.table` draws ┌┬┐ borders; `C.facts(rows)` = measure | value | [status] | meaning). Colour coding: `C.rank_paint` (best green / worst red per column) in conditions + grounding; `C.grade`/`C.badge` status badges (label audit HIGH/PARTIAL/MODERATE, Brier, AP, thresholds ON/OFF, targets); single-feature and per-category readings coloured; `C.color_key()` printed under the banner (or a tip to use --save when piped). Windows pipes: stdout switched to the console code page (cp437) and wrapped in `_Translate`, so box borders survive `| Tee-Object` and every other symbol falls back cleanly (no mojibake); glyphs chosen per encoding by `Glyphs(enc)`. LLM-calls column shown only when non-zero.
+   - 22 Nov: `scripts/make_demo_pack.py` builds demo/1_pipeline_flow.png (PIPELINE_FLOW.md), 2_results_3_seeds.png (results/full/RESULTS.md), 3_run_seed0.png (results/demo_seed0_color.txt), 4_run_all_3_seeds.png (results/run_all_color.txt). The .txt inputs come from `terminal_to_png.py --record`; OCMG_COLOR=1 (set by --record) forces colour in run_all's child processes. make_doc_png per-section pages now only with --pages.
+   - 22 Nov: live demo uses `--dataset synthetic --conversations 8` (~12 s, AUC 0.929): at 6 conversations the estimator gets 67 rows and scores a flat 0.500, which reads as failure. Grounding 'reading' fixed: 'sends everything' only for full_context (naive RAG at 100% recall on synthetic was mislabelled), 'misses none' otherwise. Section 4/9 headings say 'gold evidence ids', not 'LoCoMo', so they are true on synthetic data.
+   - Same day: **`run_experiment.py --write-quantile` defaulted to a literal 0.35**, overriding config's measured optimum 0.0, so every main run (incl. `results/full/run_main.json`, OCMG 0.611 / 1,291 tok at seed 0) had the gate ON. Now reads the config. Seed 0 re-run: OCMG 0.632 / 1,279 tok (matches config.py's sweep row), baselines unchanged. Re-run `run_all.py --only main` before quoting any main-table OCMG number. Still open: `--mass-target` defaults to 0.80 in every script while config says 0.55 - consistent across scripts, so left alone, but one of the two should be made the single source.
+
 Earlier-era fixes (keep): leave-one-out credit in warm-up replaced ~93%-noise co-occurrence credit; conversation-partitioned store; single `features_for`; format-aware date parser; quantile thresholds on contested population; exploration policy (wider budgets, ε-random inclusion) to break circular Phase A data collection.
 
 ---
 
-## 8. Current results (simulated reader + hashing embedder -> pipeline validation only)
+## 8. Current results (simulated reader throughout -> pipeline validation only)
+
+Results A-D use the hashing embedder. Result E uses the real embedder
+(`BAAI/bge-small-en-v1.5`) and is the strongest version of the negative
+result; it is still not reportable, because §2.3 needs the real **reader**
+too, and no real-reader run has produced an interpretable number yet (see E2,
+E3 and E4 for why).
 
 ### Where this stands as of 2 November 2026 — read this before the tables below
 
@@ -422,6 +451,118 @@ the typed ungoverned store, stage-4 budget reads a derived query type).
 | Accuracy retention >= 0.95 | 0.885 +/- 0.016 | **NO CEILING** - naive RAG (0.613) now scores above full context (0.573), so the ratio has no upper bound to measure against |
 | Token reduction >= 0.40 | 0.586 +/- 0.019 | **passes, but do not quote it** - OCMG's own spend went UP (448 -> 507); the target flipped because the comparator got dearer. §2.3 forbids presenting that as a win |
 | Estimator ROC-AUC >= 0.70 | 0.709 +/- 0.016 | MET, and beaten by one untrained feature (see result 3) |
+
+**E. The real embedder makes it worse, on every seed — and the CPU cost model
+in `ReaderConfig` is measured wrong.** Two separate findings from 7 November
+2026, both from runs that completed.
+
+*E1. Real embedder (`BAAI/bge-small-en-v1.5`, 384d), 3 seeds, simulated
+reader, `results/full/run_real_embed.json`.*
+
+| condition | acc mean | sd | tok/q |
+|---|---|---|---|
+| Full context | 0.574 | 0.007 | 15,376 |
+| Naive RAG (top-k) | **0.657** | 0.006 | 1,105 |
+| Append-all typed | **0.668** | 0.015 | 1,613 |
+| Decay-based | 0.553 | 0.024 | 1,663 |
+| OCMG | 0.625 | 0.006 | 858 |
+
+Per-seed gap, OCMG minus naive top-k: **-0.0429 / -0.0239 / -0.0281**,
+negative on 3 of 3. Versus append-all: -0.0650 / -0.0368 / -0.0271, negative
+on 3 of 3. Versus decay: +0.0360 / +0.0836 / +0.0947, positive on 3 of 3. The
+sds on OCMG and naive are both 0.006, so the -0.032 mean gap is roughly five
+standard deviations: not seed noise.
+
+Targets: retention 1.089 +/- 0.015 **NO CEILING** (full context 0.574 sits
+below naive 0.657 on every seed, sd 0.007 - this is a stable structural
+property of LoCoMo with this reader, not an artefact); token reduction 0.223
++/- 0.012 **NOT MET**; estimator ROC-AUC 0.713 +/- 0.003 **MET**.
+
+**The mechanism, and why this is the strongest version of the negative
+result.** With the hashing embedder OCMG was nominally *ahead* of naive RAG at
+the single operating point (0.6151 vs 0.6131), and only the iso-cost sweep
+refuted it — so the negative could still be dismissed as an artefact of cost
+matching. With real embeddings OCMG is behind on every seed at the single
+point *and* at iso-cost. **A competent retriever absorbs the headroom the
+governance was filling**: with hashing, OCMG's typed store and adaptive budget
+were partly compensating for a bad ranking; with real embeddings the ranking is
+already good and governance only removes evidence. Fourth instance of AUC
+moving independently of system accuracy (0.713 passes while the system loses
+to every baseline but decay).
+
+Still `reportable: no` — simulated reader. §2.3 needs both.
+
+*E2. Real-reader cost on this CPU: ~95 s per generation, and it is
+prefill-bound, not decode-bound.* `ReaderConfig.max_new_tokens` carries the
+comment "generation is sequential and dominates cost on CPU, so this is the
+strongest cost lever in the whole run". **That is false at real prompt
+lengths.** Measured, Qwen2.5-1.5B-Instruct, float32, 4 threads:
+
+| prompt | max_new_tokens | batch | per generation |
+|---|---|---|---|
+| 298 tokens (synthetic probe) | 24 | 1 | 44.75 s |
+| 298 tokens (synthetic probe) | 24 | 8 | 22.75 s |
+| ~1,100 tokens (real LoCoMo) | 8 | 8 | **95 s** |
+
+Prompt length rose 3.7x and per-generation time rose 4.2x *while* the token
+limit fell from 24 to 8. Cost tracks prefill. Consequences: batching buys only
+1.97x (it is streaming weights, not saturating arithmetic); **bfloat16 is 2.1x
+SLOWER than float32** (47.63 s per generation - no fast CPU bf16 kernels on
+this chip, so dtype follows the device, which `HFReader` now does); and
+`--max-new-tokens` is not a useful lever. A 3-seed real-reader run at
+`--questions-per-conv 5` is about **35 hours** on this machine, so the GPU is
+not a convenience. The forgetting-sweep re-run — the item most likely to flip
+a sign — is simply unreachable on CPU.
+
+*E3. `--fast` with `max_new_tokens 8` zeroes the measurement.* Every arm
+scored 0.000 and OCMG 0.200 (2 of 10 questions, CI [+0.000, +0.500], p=0.216),
+estimator AUC 0.500, label audit precision/recall/kappa all 0.000. The judge
+was not the cause (real-reader runs use token-F1 >= 0.6, not exact match): 8
+tokens are spent on preamble before the answer appears. The token cut has been
+removed from the preset and the reason recorded at the site. `REDUCED RUN` and
+`reportable: no` both fired correctly, so nothing leaked.
+
+*E4. A small run cannot train the estimator, and used to misreport that as a
+failure.* 10 Nov 2026, `--fast --questions-per-conv 2` with
+Qwen2.5-0.5B-Instruct: 20 questions, 10 of them warm-up, each ablating at most
+4 records under the cap. Result: **2 labelled records at a 0.0% positive
+rate**, `auc_folds: []`. `UtilityEstimator.fit` bails out when either class
+has fewer than 10 rows and returns a declared fallback (AUC 0.5, Brier 0.25,
+which is just 0.5 squared) - but reporting printed it as "ROC-AUC 0.500,
+target NOT MET": a model that was never built, shown as a model that failed.
+Fixed with `EstimatorReport.fitted`, a "NOT MEASURABLE - nothing to fit"
+banner naming the row count and positive rate, `measurable` in the JSON, and
+the same void-the-mean rule the retention guard uses - because 0.80/0.80/0.50
+averages to exactly 0.70 and would otherwise pass on the strength of an
+unfitted seed. **`--fast` is a timing preset and cannot produce an
+interpretable result at any reader size.**
+
+Incidentally measured: Qwen2.5-0.5B-Instruct ran at ~34 s per generation
+against 1.5B's ~95 s - a real 2.8x, and the only speed lever tried that worked
+as hoped. Generation reuse was 12.2% in both runs, because the prompt set is
+seed-determined and so model-independent.
+
+**F. Per-category accuracy explains the NO CEILING anomaly - it is an
+interaction, not noise.** From `results/tables/per_category_accuracy.csv`
+(seed 0, simulated reader, hashing embedder):
+
+| condition | single hop | multi hop | temporal | open domain | adversarial |
+|---|---|---|---|---|---|
+| Full context | 0.583 | **0.599** | 0.605 | **0.625** | 0.536 |
+| Naive RAG (top-k) | 0.693 | 0.254 | 0.645 | 0.300 | 0.797 |
+| Append-all typed | **0.708** | 0.296 | 0.632 | 0.325 | 0.797 |
+| Decay-based | 0.574 | 0.296 | 0.612 | 0.275 | 0.797 |
+| OCMG | 0.655 | 0.282 | 0.618 | 0.300 | **0.839** |
+
+Full context wins multi-hop by 0.345 and open-domain by 0.300 over every
+retrieval method, and loses adversarial by 0.26 or more. Breadth wins where
+an answer needs several sessions; restraint wins where the correct response
+is to abstain, because a long prompt tempts the reader into answering. The
+aggregate mean hides both effects and reports only their sum, which is why
+full context lands *below* naive top-k overall and the retention ratio has no
+ceiling to measure against. **OCMG leads every arm on adversarial (0.839)** -
+the one category where governance demonstrably helps, and worth reporting as
+such rather than being buried in an average.
 
 ### The iso-cost result (the frame §3 mandates)
 

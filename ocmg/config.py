@@ -149,6 +149,33 @@ class RetrievalConfig:
 
 
 @dataclass
+class EvalConfig:
+    """How an answer is scored. The single place accuracy is configured.
+
+    judge
+        "auto"  -> "exact" with the simulated reader (it returns the gold
+                   text verbatim when it is right), "f1" with a real reader.
+        "exact" -> case-insensitive string equality with the reference.
+        "f1"    -> correct when token F1 against the reference reaches
+                   f1_threshold.
+        Adversarial questions ignore this: whatever the judge, they are
+        correct only when the answer abstains (reader.is_abstention).
+    f1_threshold
+        0.6 since the first real-reader runs. Half-credit answers ("May
+        2023" for "7 May 2023", F1 0.8) pass; a single shared word in a
+        three-word reference (F1 0.4 or 0.5) does not. Changing it changes
+        every accuracy figure and every leave-one-out label.
+    grounded_support_threshold
+        An answer counts as grounded when at least this share of its content
+        words appear in the prompt it was given (ocmg/grounding.py).
+    """
+
+    judge: str = "auto"
+    f1_threshold: float = 0.6
+    grounded_support_threshold: float = 0.5
+
+
+@dataclass
 class EstimatorConfig:
     # "gbdt" | "logistic" | "rarity" (one-feature heuristic ablation)
     model: str = "gbdt"
@@ -340,6 +367,7 @@ class OCMGConfig:
     governance: GovernanceConfig = field(default_factory=GovernanceConfig)
     exploration: ExplorationConfig = field(default_factory=ExplorationConfig)
     reader: ReaderConfig = field(default_factory=ReaderConfig)
+    evaluation: EvalConfig = field(default_factory=EvalConfig)
     credit_scheme: str = "rank_weighted"  # rank_weighted|uniform|top1|leave_one_out
 
     def to_json(self) -> str:

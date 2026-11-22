@@ -30,7 +30,35 @@ from ocmg.data.benchmarks import load_dataset            # noqa: E402
 from ocmg.experiment import (PRE_FIX_ESTIMATOR_AUC, LABELS,  # noqa: E402
                              run_all_conditions, subsample_questions,
                              summarise)
+from ocmg.metrics import paired_bootstrap                # noqa: E402
 from ocmg.reporting import aggregate_runs, run_to_dict  # noqa: E402
+from ocmg.types import RunResult                         # noqa: E402
+
+
+def _versus(results, other: str):
+    """OCMG minus `other` on the same questions: (delta, p, glyph)."""
+    a, b = results.get("ocmg"), results.get(other)
+    if not (isinstance(a, RunResult) and isinstance(b, RunResult)) or len(
+            a.per_question_correct) != len(b.per_question_correct):
+        return None
+    bs = paired_bootstrap(a.per_question_correct, b.per_question_correct)
+    if bs["ci_low"] <= 0.0 <= bs["ci_high"]:
+        mark = "same"
+    elif bs["delta"] > 0:
+        mark = "better"
+    else:
+        mark = "worse"
+    return bs["delta"], bs["p_value"], mark
+
+
+_MARK = {"better": "\u2714", "worse": "\u2718", "same": "\u00b7"}
+
+
+def _cell(v) -> str:
+    if v is None:
+        return "-"
+    d, p, mark = v
+    return f"{d:+.3f} p{p:.2f} {_MARK[mark]}"
 
 
 def build_config(args) -> OCMGConfig:
@@ -76,6 +104,12 @@ def main() -> int:
     ap.add_argument("--facts", type=int, default=10)
     ap.add_argument("--runs", type=int, default=1, help="repeat with different seeds")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--detail", choices=["auto", "full", "brief"],
+                    default="auto",
+                    help="full = sections 1-9 for every seed; brief = one row "
+                         "per seed plus the mean. auto = full for one seed, "
+                         "brief for several. Every number is in the JSON "
+                         "either way; --runs 1 --seed N shows one seed in full")
     ap.add_argument("--embedder", default="hashing",
                     choices=["auto", "hashing", "sentence-transformers"])
     ap.add_argument("--reader", default="simulated", choices=["simulated", "hf"])
@@ -119,7 +153,11 @@ def main() -> int:
     ap.add_argument("--credit", default="rank_weighted",
                     choices=["rank_weighted", "uniform", "top1"])
     ap.add_argument("--k", type=int, default=10)
-    ap.add_argument("--write-quantile", type=float, default=0.35)
+    # Read from the config, as --forget-quantile is. This was a literal 0.35
+    # until 21 Nov 2026, which silently re-enabled the admission gate on every
+    # main run after config.py had set the measured optimum of 0.0.
+    ap.add_argument("--write-quantile", type=float,
+                    default=OCMGConfig().governance.write_quantile)
     ap.add_argument("--utility-weight", type=float, default=None,
                     help="strength of utility reranking; 0 disables it")
     ap.add_argument("--conditional-utility", action="store_true",
@@ -142,6 +180,11 @@ def main() -> int:
                     help="ablate stage 4's query-type term from the budget")
     ap.add_argument("--out", default=None,
                     help="results json (default: results/run_<dataset>.json)")
+    ap.add_argument("--save", default=None, metavar="FILE",
+                    help="also write everything printed to FILE as UTF-8 "
+                         "text; use this instead of | Tee-Object")
+    ap.add_argument("--save-append", action="store_true",
+                    help=argparse.SUPPRESS)
     ap.add_argument("--no-color", action="store_true",
                     help="plain output, for redirecting into a file or a log")
     args = ap.parse_args()
@@ -152,6 +195,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
+    C.save_to(args.save, append=args.save_append)
     C.refresh_glyphs()
     if args.no_color:
         C.set_color(False)
@@ -163,8 +207,15 @@ def main() -> int:
             args.conditions = "naive_rag,append_all,decay,ocmg"
         if args.loo_max_records == 0:
             args.loo_max_records = 4
-        if args.max_new_tokens == 24:
-            args.max_new_tokens = 8
+        # No max_new_tokens cut. It was in this preset until it was
+        # measured, on the strength of the claim in ReaderConfig that
+        # generation is sequential and therefore the strongest cost lever. At
+        # real LoCoMo prompt lengths that is false: cutting 24 tokens to 8
+        # while the prompt grew from 298 to ~1,100 tokens made the run 4.2x
+        # SLOWER per generation, so cost tracks prefill, not decode. The cut
+        # bought almost nothing and it zeroed the measurement - every arm
+        # scored 0.000 because 8 tokens are spent on preamble before the
+        # answer appears. See CLAUDE.md section 8 result E.
 
     conditions = ([c.strip() for c in args.conditions.split(",") if c.strip()]
                   if args.conditions else None)
@@ -184,10 +235,13 @@ def main() -> int:
     ))
     if not reportable:
         print(C.note(
-            "PIPELINE VALIDATION.  Simulated reader and/or hashing embedder: "
-            "these numbers test the machinery, they are not findings.",
+            "PIPELINE VALIDATION: simulated reader / hashing embedder, so "
+            "these numbers test the code and are not thesis findings",
             "warning", glyph=C.G.warn,
         ))
+    key = C.color_key()
+    if key:
+        print(key)
     if args.fast or conditions or args.loo_max_records:
         missing = ([c for c in ("full_context", "naive_rag", "append_all",
                                 "decay", "generative_judge", "ocmg")
@@ -209,11 +263,19 @@ def main() -> int:
             "critical", glyph=C.G.bad,
         ))
 
+    detail = (args.detail if args.detail != "auto"
+              else "full" if args.runs == 1 else "brief")
     all_runs = []
+    seed_rows = []
+    verdicts = {"naive_rag": [], "append_all": [], "decay": []}
     for run in range(args.runs):
         seed = args.seed + run
-        if args.runs > 1:
+        if args.runs > 1 and detail == "full":
             print(C.section("", f"RUN {run + 1} of {args.runs}   seed {seed}"))
+        elif detail == "brief":
+            print(C.kv(f"seed {seed}", f"running ({run + 1} of {args.runs})",
+                       hint="full detail for this seed: --runs 1 --seed "
+                            f"{seed}"))
 
         data = load_dataset(
             args.dataset, args.path,
@@ -241,32 +303,75 @@ def main() -> int:
             else None
         )
         results = run_all_conditions(data, cfg, conditions=conditions,
-                                     baseline_auc=baseline)
-        print(summarise(results))
+                                     baseline_auc=baseline,
+                                     verbose=(detail == "full"))
+        if detail == "full":
+            print(summarise(results))
         all_runs.append(run_to_dict(results, seed))
+        vs = {o: _versus(results, o) for o in verdicts}
+        for o, v in vs.items():
+            if v:
+                verdicts[o].append(v[2])
+        est = results.get("_estimator")
+        acc = {n: results[n].accuracy for n in LABELS
+               if isinstance(results.get(n), RunResult)}
+        seed_rows.append([
+            str(seed),
+            *[f"{acc[n]:.3f}" if n in acc else "-"
+              for n in ("full_context", "naive_rag", "append_all", "decay",
+                        "ocmg")],
+            f"{est.auc_mean:.3f}" if est is not None else "-",
+            _cell(vs["naive_rag"]), _cell(vs["append_all"]),
+        ])
 
     aggregate = aggregate_runs(all_runs)
     if args.runs > 1:
-        print(C.section("9", f"MEAN OVER {args.runs} SEEDS"))
+        if detail == "brief":
+            print(C.section("", f"PER SEED   accuracy of each condition, then "
+                                "OCMG minus a baseline"))
+            print(C.note(
+                "acc = share of questions judged correct · AUC = estimator "
+                "ROC-AUC · OCMG-RAG / OCMG-append = accuracy difference on the "
+                "same questions, paired-bootstrap p, \u2714 better \u2718 worse "
+                "\u00b7 no real difference", "muted"))
+            print(C.table(
+                ["seed", "full ctx", "naive RAG", "append", "decay", "OCMG",
+                 "AUC", "OCMG-RAG", "OCMG-append"],
+                seed_rows,
+                aligns=["left"] + ["right"] * 8,
+            ))
+
+        print(C.section("10", f"MEAN OVER {args.runs} SEEDS   sd = spread "
+                              "across seeds"))
         order = [n for n in LABELS if n in aggregate["conditions"]]
+
+        def _g(n, key):
+            vals = [r["conditions"][n].get("extra", {}).get("grounding", {})
+                    .get(key) for r in all_runs if n in r["conditions"]]
+            vals = [v for v in vals if v is not None]
+            return f"{sum(vals) / len(vals):.1%}" if vals else "-"
+
+        print(C.note(
+            "acc = share correct · tok/q = memory word tokens per question · "
+            "ev recall = gold evidence that reached the prompt · ctx prec = "
+            "prompt records holding evidence", "muted"))
         print(C.table(
-            ["condition", "acc mean", "acc sd", "tok/q"],
+            ["condition", "acc mean", "acc sd", "tok/q mean", "ev recall",
+             "ctx prec"],
             [
                 [
                     LABELS[n],
                     f"{aggregate['conditions'][n]['accuracy']['mean']:.3f}",
                     f"{aggregate['conditions'][n]['accuracy']['sd']:.3f}",
                     f"{aggregate['conditions'][n]['tokens_per_query']['mean']:,.0f}",
+                    _g(n, "evidence_recall"), _g(n, "context_precision"),
                 ]
                 for n in order
             ],
             emphasis_row=order.index("ocmg") if "ocmg" in order else None,
         ))
-        # The same two guards summarise() applies per seed. Without them this
-        # footer printed MET for a retention ratio measured against something
-        # that was not a ceiling, and for a token reduction measured against a
-        # baseline spending twice as much - the mean-over-seeds block is what
-        # gets read, so a guard only in the per-seed block is no guard at all.
+        # The same two guards summarise() applies per seed: the mean block is
+        # what gets read, so a guard only per seed is no guard at all.
         conds = aggregate["conditions"]
         acc = {n: conds[n]["accuracy"]["mean"] for n in conds}
         tok = {n: conds[n]["tokens_per_query"]["mean"] for n in conds}
@@ -275,10 +380,24 @@ def main() -> int:
         cost_gap = (tok.get("naive_rag", 0) / tok["ocmg"]
                     if tok.get("ocmg") else 1.0)
 
+        meaning = {
+            "accuracy_retention": (
+                f"OCMG acc / full-context acc; full context "
+                f"({acc.get('full_context', 0):.3f}) is below naive RAG "
+                f"({acc.get('naive_rag', 0):.3f}), so no upper bound"
+                if no_ceiling else "share of full-context accuracy OCMG keeps"),
+            "token_reduction": (
+                "1 - OCMG tokens / naive RAG tokens; negative = OCMG is dearer"
+                + (f"; naive RAG spends {cost_gap:.1f}x OCMG, so a pass would "
+                   "flatter it - read the iso-cost sweep" if cost_gap > 1.25
+                   else "")),
+            "estimator_auc": ("chance a useful record is scored above a useless one; "
+                              "rare_term_count alone scores about the same"),
+        }
         for key, label, target in (
-            ("accuracy_retention", "Accuracy retention vs full context", 0.95),
-            ("token_reduction", "Token reduction vs fixed top-k", 0.40),
-            ("estimator_auc", "Utility estimator ROC-AUC", 0.70),
+            ("accuracy_retention", "accuracy retention", 0.95),
+            ("token_reduction", "token reduction", 0.40),
+            ("estimator_auc", "estimator ROC-AUC", 0.70),
         ):
             t = aggregate.get("targets", {}).get(key)
             if not t:
@@ -286,24 +405,22 @@ def main() -> int:
             status = C.status(bool(t["met"]))
             if key == "accuracy_retention" and no_ceiling:
                 status = C.paint(f"{C.G.warn} NO CEILING", "warning")
-            print(C.kv(label, f"{t['mean']:.3f} +/- {t['sd']:.3f}", width=36,
-                       hint=f">= {target:.2f}   {status}"))
+            print(C.kv(label, f"{t['mean']:.3f} +/- {t['sd']:.3f}", width=22,
+                       hint=f"target >= {target:.2f}  {status}   "
+                            f"{meaning[key]}"))
 
-        if no_ceiling:
-            print(C.note(
-                f"Accuracy retention is not interpretable: full context scored "
-                f"{acc['full_context']:.3f}, below naive top-k at "
-                f"{acc['naive_rag']:.3f}, so it is not an upper bound.",
-                "warning", glyph=C.G.warn))
-        if cost_gap > 1.25:
-            print(C.note(
-                f"Token reduction is measured against a baseline spending "
-                f"{cost_gap:.1f}x as much ({tok['naive_rag']:,.0f} against "
-                f"{tok['ocmg']:,.0f} tokens per query), so a pass here says "
-                "the comparator is expensive, not that OCMG is efficient. "
-                "Read the iso-cost sweep instead: accuracy at matched spend "
-                "is the frame this evaluation is built on.",
-                "warning", glyph=C.G.warn))
+        names = {"naive_rag": "naive RAG", "append_all": "append-all",
+                 "decay": "decay"}
+        for o, marks in verdicts.items():
+            if not marks:
+                continue
+            print(C.kv(f"OCMG vs {names[o]}",
+                       f"better {marks.count('better')}  worse "
+                       f"{marks.count('worse')}  no difference "
+                       f"{marks.count('same')}",
+                       width=22,
+                       hint=f"seeds out of {len(marks)}, each by paired "
+                            "bootstrap at 95%"))
 
     out_path = args.out or os.path.join("results", f"run_{args.dataset}.json")
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
@@ -357,14 +474,17 @@ def main() -> int:
     with open(out_path, "w", encoding="utf8") as fh:
         json.dump(payload, fh, indent=2)
     print(C.section("", "OUTPUT"))
-    print(C.kv("results written", out_path))
+    print(C.kv("results written", out_path,
+               hint="every number above, per seed; make_report.py builds "
+                    "tables from it"))
     reduced = bool(conditions or args.loo_max_records
                    or args.max_new_tokens != 24)
     print(C.kv("reportable", "yes" if reportable and not reduced else "no",
                hint=("reduced run: arms dropped, counterfactuals capped or "
                      "tokens cut" if reduced and reportable
                      else "" if reportable
-                     else "needs --reader hf --embedder sentence-transformers")))
+                     else "thesis-quotable only with --reader hf "
+                          "--embedder sentence-transformers")))
     print("")
     return 0
 

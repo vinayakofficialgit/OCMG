@@ -34,6 +34,8 @@ from .features import (FEATURE_NAMES, QUERY_TYPE_NAMES, IdfIndex,
                        record_to_candidate)
 from .governance import GovernancePolicy
 from .ingest import build_candidates, count_tokens
+from .grounding import GroundingTracker
+from .locomo_eval import locomo_f1, mean_by_category
 from .metrics import (accuracy, accuracy_per_1k_tokens,
                       accuracy_retention_ratio, paired_bootstrap,
                       retention_precision, token_reduction_ratio)
@@ -69,15 +71,24 @@ class PhaseAOutput:
 
 
 class OCMGRunner:
+    # How many graded answers to keep verbatim for inspection. Small on
+    # purpose: this is a diagnostic window, not a transcript.
+    MAX_SAMPLES = 24
+
     def __init__(self, cfg: OCMGConfig):
         self.cfg = cfg
+        self.sample_answers: List[dict] = []
         self.embedder = build_embedder(
             cfg.embedder, cfg.embedding_dim, cfg.st_model, cfg.seed
         )
         # Keep the configured dim in step with the actual encoder.
         self.cfg.embedding_dim = getattr(self.embedder, "dim", cfg.embedding_dim)
         self.reader = build_reader(cfg.reader, seed=cfg.seed)
-        self.judge = Judge("exact" if cfg.reader.kind == "simulated" else "f1")
+        ev = cfg.evaluation
+        kind = ev.judge
+        if kind == "auto":
+            kind = "exact" if cfg.reader.kind == "simulated" else "f1"
+        self.judge = Judge(kind, f1_threshold=ev.f1_threshold)
         self.rng = np.random.default_rng(cfg.seed)
         self.estimator = UtilityEstimator(cfg.estimator)
         self.estimator_report: Optional[EstimatorReport] = None
@@ -493,6 +504,10 @@ class OCMGRunner:
         retriever = Retriever(store, self.embedder, self.cfg.retrieval)
         correct_flags: List[int] = []
         f1s: List[float] = []
+        official: List[float] = []
+        grounding = GroundingTracker(
+            self.cfg.evaluation.grounded_support_threshold)
+        cats: List[str] = []
         tokens: List[int] = []
         lats: List[float] = []
         by_cat: Dict[str, List[int]] = {}
@@ -548,6 +563,26 @@ class OCMGRunner:
 
                 pred, _, _ = self.reader.answer(q, context)
                 ok, f1 = self.judge.score(pred, q.answer)
+                # Scored a second way, never fed back: the official LoCoMo
+                # protocol, so the table can sit beside published numbers.
+                official.append(locomo_f1(pred, q.answer, q.category))
+                cats.append(q.category)
+                # Grounding: was the gold evidence in the prompt, and do the
+                # answer's words come from that prompt? Never fed back.
+                grounding.add(q, context, pred, ok)
+
+                # Keep a few graded answers verbatim. A real-reader run that
+                # scores 0.000 on every arm is indistinguishable, from the
+                # numbers alone, between a reader that is wrong and a reader
+                # that was cut off before it answered - and the second one
+                # happened. Without a sample there is nothing to look at.
+                if len(self.sample_answers) < self.MAX_SAMPLES:
+                    self.sample_answers.append({
+                        "condition": condition, "question": q.text,
+                        "gold": q.answer, "prediction": pred,
+                        "f1": float(f1), "correct": int(ok),
+                        "locomo_f1": float(official[-1]),
+                    })
 
                 for rid, credit, weight in assign_credit(
                     self.cfg.credit_scheme, rec_ids, ranks, ok
@@ -568,7 +603,7 @@ class OCMGRunner:
                     policy.run_forgetting(store, q.asked_at, conv=cid)
 
         store.commit()
-        return RunResult(
+        result = RunResult(
             condition=condition,
             accuracy=accuracy(correct_flags),
             token_f1=float(np.mean(f1s)) if f1s else 0.0,
@@ -579,4 +614,8 @@ class OCMGRunner:
             n_questions=len(correct_flags),
             per_question_correct=correct_flags,
             per_category={k2: float(np.mean(v)) for k2, v in by_cat.items()},
+            locomo_f1=float(np.mean(official)) if official else 0.0,
+            locomo_f1_per_category=mean_by_category(official, cats),
         )
+        result.extra["grounding"] = grounding.summary()
+        return result

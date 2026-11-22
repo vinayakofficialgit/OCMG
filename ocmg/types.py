@@ -177,3 +177,8 @@ class RunResult:
     per_question_correct: List[int] = field(default_factory=list)
     per_category: Dict[str, float] = field(default_factory=dict)
     extra: Dict[str, Any] = field(default_factory=dict)
+    # Mean F1 under the official LoCoMo protocol (ocmg/locomo_eval.py). A
+    # comparability column only: accuracy above, from the binary judge, is
+    # what the method, the labels and the significance tests use.
+    locomo_f1: float = 0.0
+    locomo_f1_per_category: Dict[str, float] = field(default_factory=dict)

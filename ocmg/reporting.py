@@ -40,6 +40,8 @@ def condition_to_dict(r: RunResult) -> Dict[str, Any]:
     return {
         "accuracy": r.accuracy,
         "token_f1": r.token_f1,
+        "locomo_f1": r.locomo_f1,
+        "locomo_f1_per_category": _plain(r.locomo_f1_per_category),
         "tokens_per_query": r.prompt_tokens_per_query,
         "accuracy_per_1k_tokens": accuracy_per_1k_tokens(
             r.accuracy, r.prompt_tokens_per_query
@@ -81,6 +83,19 @@ def run_to_dict(results: Dict[str, Any], seed: int) -> Dict[str, Any]:
     if val:
         out["label_validation"] = _plain(val)
 
+    # Graded answers kept verbatim, and how much generation was reused. Both
+    # are diagnostics rather than measurements, but they have to survive into
+    # the file: a real-reader run that scores zero everywhere cannot be
+    # explained from the aggregate numbers, and a run that was fast for an
+    # unstated reason invites the wrong conclusion about why.
+    samples = results.get("_samples")
+    if samples:
+        out["samples"] = _plain(samples)
+
+    gen = results.get("_generation")
+    if gen:
+        out["generation"] = _plain(gen)
+
     ocmg = results.get("ocmg")
     full = results.get("full_context")
     naive = results.get("naive_rag")
@@ -116,9 +131,16 @@ def run_to_dict(results: Dict[str, Any], seed: int) -> Dict[str, Any]:
         }
     if "estimator" in out:
         v = out["estimator"]["auc_mean"]
+        fitted = bool(getattr(est, "fitted", True))
         targets["estimator_auc"] = {
             "value": v, "target": TARGET_ESTIMATOR_AUC,
-            "met": bool(v >= TARGET_ESTIMATOR_AUC),
+            # An unfitted estimator cannot meet the target, and it cannot miss
+            # it either: there was nothing to measure. Carrying the flag keeps
+            # a mean over seeds from laundering a fallback into a datapoint.
+            "met": bool(v >= TARGET_ESTIMATOR_AUC and fitted),
+            "measurable": fitted,
+            "n_samples": int(out["estimator"]["n_samples"]),
+            "positive_rate": float(out["estimator"]["positive_rate"]),
         }
     out["targets"] = targets
 
@@ -145,9 +167,11 @@ def aggregate_runs(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
     for name in names:
         rows = [r["conditions"][name] for r in runs if name in r["conditions"]]
         entry = {}
-        for metric in ("accuracy", "token_f1", "tokens_per_query",
+        for metric in ("accuracy", "token_f1", "locomo_f1", "tokens_per_query",
                        "accuracy_per_1k_tokens", "records_retained"):
-            vals = np.array([row[metric] for row in rows], dtype=float)
+            # .get: results files written before locomo_f1 existed lack it.
+            vals = np.array([row.get(metric, np.nan) for row in rows],
+                            dtype=float)
             entry[metric] = {"mean": float(vals.mean()), "sd": float(vals.std())}
         agg["conditions"][name] = entry
     val_keys = ("precision", "recall", "kappa", "estimator_auc_vs_evidence",
@@ -181,5 +205,14 @@ def aggregate_runs(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
             if any(f is False for f in flags):
                 entry["met"] = False
                 entry["full_context_is_ceiling"] = False
+            # Same reasoning for an estimator that was never fitted. Its 0.5
+            # is a fallback, and averaging a fallback with real AUCs produces
+            # a number that looks measured and is not. One unmeasurable seed
+            # makes the mean unmeasurable.
+            measurable = [r["targets"][key].get("measurable")
+                          for r in runs if key in r.get("targets", {})]
+            if any(m is False for m in measurable):
+                entry["met"] = False
+                entry["measurable"] = False
             agg.setdefault("targets", {})[key] = entry
     return agg

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from datetime import datetime
 from typing import List, Optional, Protocol, Sequence, Tuple
 
 import numpy as np
@@ -43,6 +44,16 @@ _ABSTAIN_PATTERNS = re.compile(
 
 def is_abstention(text: str) -> bool:
     return bool(_ABSTAIN_PATTERNS.search(text or ""))
+
+
+def format_session_date(timestamp: float) -> str:
+    """'8 May 2023' - the style LoCoMo's reference answers are written in.
+
+    Local time, matching parse_locomo_datetime, so the round trip never
+    shifts a date across midnight.
+    """
+    d = datetime.fromtimestamp(timestamp)
+    return f"{d.day} {d.strftime('%B %Y')}"
 
 
 def token_f1(prediction: str, reference: str) -> float:
@@ -203,15 +214,38 @@ class HFReader:
         self.cache_hits = 0
         self.generated = 0
 
+    # The reply asked for when the records do not hold the answer. Chosen to
+    # satisfy both scorers: reader.is_abstention matches "not mentioned", and
+    # so does the official LoCoMo rule, which accepts only "not mentioned" or
+    # "no information available". The previous phrase, "unable to determine
+    # from memory", passed the first and failed the second, so every correct
+    # abstention would have scored 0 under the published protocol.
+    ABSTAIN_REPLY = "Not mentioned in the conversation"
+
     def _prompt(self, question: Question, context: Sequence[Record]) -> str:
+        # Each record carries the date of the session it came from. Without
+        # it the reader cannot answer a temporal question: measured on
+        # LoCoMo, the answer to 254 of the 321 temporal questions ("When did
+        # Caroline go to the support group?" -> "7 May 2023") is not
+        # recoverable from the turn text alone, because the turn says
+        # "yesterday" or "last Saturday" and the date lives in the session
+        # header. The official LoCoMo prompt supplies it the same way. The
+        # simulated reader never reads the prompt, so this changes no
+        # simulated-reader number; prompt_tokens counts record text only, as
+        # it already did for the "[i] (type)" header.
         blocks = [
-            f"[{i + 1}] ({r.record_type}) {r.text}" for i, r in enumerate(context)
+            f"[{i + 1}] ({r.record_type}, {format_session_date(r.timestamp)}) "
+            f"{r.text}"
+            for i, r in enumerate(context)
         ]
         joined = "\n".join(blocks) if blocks else "(no memory retrieved)"
         return (
             "You are answering from a memory store. Use only the records below.\n"
-            "If the records do not contain the answer, reply exactly: "
-            "unable to determine from memory.\n\n"
+            "Each record shows the date of the conversation it came from; "
+            "resolve words such as 'yesterday' or 'last week' against that "
+            "date.\n"
+            "Answer with a short phrase. If the records do not contain the "
+            f"answer, reply exactly: {self.ABSTAIN_REPLY}.\n\n"
             f"MEMORY:\n{joined}\n\nQUESTION: {question.text}\nANSWER:"
         )
 
@@ -340,8 +374,10 @@ class Judge:
     which is why Section 9.3 budgets for it.
     """
 
-    def __init__(self, kind: str = "exact", model=None):
+    def __init__(self, kind: str = "exact", model=None,
+                 f1_threshold: float = 0.6):
         self.kind = kind
+        self.f1_threshold = f1_threshold
         self.model = model
         self.calls = 0
 
@@ -355,7 +391,7 @@ class Judge:
             correct = int(prediction.strip().lower() == reference.strip().lower())
             return correct, f1
         if self.kind == "f1":
-            return int(f1 >= 0.6), f1
+            return int(f1 >= self.f1_threshold), f1
         if self.kind == "llm":
             self.calls += 1
             correct = int(self.model(prediction, reference))

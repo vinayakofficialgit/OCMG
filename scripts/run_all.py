@@ -119,6 +119,9 @@ def main() -> int:
                     help="also the steps that need torch")
     ap.add_argument("--hf-model", default="Qwen/Qwen2.5-1.5B-Instruct")
     ap.add_argument("--no-color", action="store_true")
+    ap.add_argument("--save", default=None, metavar="FILE",
+                    help="also write the whole run, every step, to FILE as "
+                         "UTF-8 text; use this instead of | Tee-Object")
     args = ap.parse_args()
 
     try:
@@ -129,6 +132,13 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
     except Exception:
         pass
+    if args.save:
+        # Truncate once, then append: the steps are separate processes that
+        # add to the same file, and only append mode keeps their writes and
+        # this process's from overwriting each other.
+        os.makedirs(os.path.dirname(os.path.abspath(args.save)), exist_ok=True)
+        open(args.save, "w", encoding="utf-8").close()
+        C.save_to(args.save, append=True)
     C.refresh_glyphs()
     if args.no_color:
         C.set_color(False)
@@ -177,6 +187,10 @@ def main() -> int:
             continue
         print(C.section(str(i), label.upper()))
         t0 = time.time()
+        if args.save and argv[1] != "-m":
+            argv = [*argv, "--save", os.path.abspath(args.save),
+                    "--save-append"]
+        sys.stdout.flush()
         code = subprocess.run(argv, cwd=os.path.join(HERE, "..")).returncode
         dt = time.time() - t0
         results.append((label, "ok" if code == 0 else f"failed ({code})", dt))
@@ -198,6 +212,12 @@ def main() -> int:
     total = sum(dt for _, _, dt in results)
     print(C.kv("total", f"{total / 60:.1f} min"))
     print(C.kv("results", outdir))
+    if results and all(state == "ok" for _, state, _ in results):
+        # One readable page (tables + charts) from the JSON just written:
+        # open it in VS Code with Ctrl+Shift+V.
+        sys.stdout.flush()
+        subprocess.run([PY, os.path.join(HERE, "make_results_page.py"),
+                        "--dir", outdir], cwd=os.path.join(HERE, ".."))
     failed = [l for l, s, _ in results if s.startswith("failed")]
     print("")
     return 1 if failed else 0

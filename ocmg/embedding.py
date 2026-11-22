@@ -67,7 +67,11 @@ class SentenceTransformerEmbedder:
         from sentence_transformers import SentenceTransformer  # noqa: PLC0415
 
         self.model = SentenceTransformer(model_name)
-        self.dim = self.model.get_sentence_embedding_dimension()
+        # Renamed in newer sentence-transformers; the old name still works
+        # but warns. Prefer the new one, fall back for older installs.
+        get_dim = (getattr(self.model, "get_embedding_dimension", None)
+                   or self.model.get_sentence_embedding_dimension)
+        self.dim = get_dim()
         self.name = model_name
 
     def encode(self, texts: Sequence[str]) -> np.ndarray:
