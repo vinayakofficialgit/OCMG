@@ -265,8 +265,43 @@ def verification():
     return save(fig, "flow_4_verification.png")
 
 
+def simple_architecture():
+    """The whole system as four steps in a loop: the version to remember."""
+    fig, ax = _ax(12, 6.4, 120, 64)
+    ax.text(60, 62, "OCMG in four steps", ha="center", fontsize=15,
+            weight="bold", color=INK)
+    ax.text(60, 57.5, "The system learns which memories are worth keeping by "
+            "checking which ones actually helped answer correctly.",
+            ha="center", fontsize=9.5, color=MUTED, style="italic")
+
+    y_top = 38
+    box(ax, 18, y_top, 28, 13, "1. STORE",
+        "turn the conversation into\nsmall memory records\n(ingest.py, store.py)", "data")
+    box(ax, 60, y_top, 28, 13, "2. RETRIEVE",
+        "pick the most relevant\nmemories for a question\n(retrieval.py)")
+    box(ax, 102, y_top, 28, 13, "3. ANSWER",
+        "the LLM reads them and\nanswers - it never learns\n(reader.py)")
+    box(ax, 60, 11, 34, 13, "4. LEARN",
+        "remove each memory and ask again:\nanswer breaks = memory was useful\n"
+        "(credit.py, estimator.py)", "learn")
+
+    arrow(ax, [(32.6, y_top), (45.4, y_top)])
+    arrow(ax, [(74.6, y_top), (87.4, y_top)])
+    arrow(ax, [(102, 31.1), (102, 11), (77.6, 11)], "was the answer right?",
+          lpos=0.0, loff=(1.5, 0))
+    arrow(ax, [(42.4, 11), (18, 11), (18, 30.9)],
+          "what it learned decides\nwhat to keep and retrieve", lpos=0.5,
+          loff=(1.8, 1), ha="left")
+
+    ax.text(60, 1.5, "Amber = the only part that learns.  The LLM is frozen: "
+            "same weights before and after.", ha="center", fontsize=8.5,
+            color=MUTED, style="italic")
+    return save(fig, "flow_0_simple_architecture.png")
+
+
 def main() -> int:
-    for fn in (pipeline, learning_loop, record_journey, verification):
+    for fn in (simple_architecture, pipeline, learning_loop,
+               record_journey, verification):
         print(f"wrote {os.path.relpath(fn())}")
     return 0
 

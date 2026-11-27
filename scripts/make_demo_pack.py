@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Build the demo pack: four PNG images that hold everything to show.
+"""Build the demo pack: five PNG images that hold everything to show.
 
     python scripts/make_demo_pack.py
 
+    demo/0_architecture_explained.png  docs/ARCHITECTURE_EXPLAINED.md: the four
+                                  steps, a deep dive into each, one worked
+                                  example, results, likely questions
     demo/1_pipeline_flow.png      docs/PIPELINE_FLOW.md: aims, what we leverage,
                                   the 4 flow diagrams with step-by-step text,
                                   precision/recall, tokens, accuracy, checks,
@@ -33,6 +36,8 @@ PY = sys.executable
 OUT = os.path.join(ROOT, "demo")
 
 STEPS = [
+    ("0_architecture_explained.png", "make_doc_png.py",
+     "docs/ARCHITECTURE_EXPLAINED.md", "the simple architecture and how to explain it"),
     ("1_pipeline_flow.png", "make_doc_png.py", "docs/PIPELINE_FLOW.md",
      "how the project works, end to end"),
     ("2_results_3_seeds.png", "make_doc_png.py", "results/full/RESULTS.md",
